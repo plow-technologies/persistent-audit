@@ -4,16 +4,13 @@
 
 module Main where
 
--- Database.Persist.Audit.Parser
--- Database.Persist.Audit.Generator
--- Database.Persist.Audit.Types
--- Database.Persist.Audit
 import           Data.Attoparsec.Text
 
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Text.IO (readFile)
+import           Data.Text.IO (putStr, readFile)
 
+import           Database.Persist.Audit.Generator
 import           Database.Persist.Audit.Parser
 
 import           WithCli
@@ -36,7 +33,11 @@ main = withCliModified mods $ \ (f :: CmdOptions) -> do
   -- print $ parseOnly parseEntities "Person json\n name Text"
 
   --print m
-  print $ parseOnly parseEntities m
+  let x = parseOnly parseEntities m
+
+  case x of 
+    Left _ -> return ()
+    Right r -> Data.Text.IO.putStr $ generateAuditModels r
   -- print m
   {-
   print $ parseOnly variableP "abc"

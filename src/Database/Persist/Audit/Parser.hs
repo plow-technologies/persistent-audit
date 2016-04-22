@@ -9,6 +9,7 @@ import           Control.Applicative
 import           Data.Attoparsec.ByteString.Char8 (isSpace)
 import           Data.Attoparsec.Text
 
+import           Data.Monoid ((<>))
 import           Data.Text (Text)
 import qualified Data.Text as T
 
@@ -17,8 +18,19 @@ import           Database.Persist.Audit.Types
 import           Prelude hiding (takeWhile)
 
 
--- variableP :: Parser String
--- variableP = (++) <$> many1 letter <*> many (digit <|> letter) <* endOfInput
+
+{- Persist Model
+
+-- TopLevelWhiteSpace above
+-- TopLevelComment
+User   -- TopLevelEntity
+  name     Text -- EntityLevelEntityField
+
+  -- EntityLevelWhiteSpace
+  -- EntityLevelComment
+  UniqueUser name -- EntityLevelEntityUnique
+  deriving Eq     -- EntityLevelEntityDerive
+-}
   
 -- helper functions
 
@@ -34,10 +46,11 @@ upperCase = satisfy (\char -> char >= 'A' && char <= 'Z')
 underline :: Parser Char 
 underline = satisfy (== '_')
 
-someSpace :: Parser ()
-someSpace = skipMany1 space
+spaceNoNewLine :: Parser Char
+spaceNoNewLine = satisfy (\x -> isSpace x && not (isEndOfLine x)) <?> "spaceNoNewLine"
 
-
+-- starts with underscore or lowercase letter
+-- underscores, single quotes, letters and digits
 -- get, _get, get_1, etc.
 haskellFunctionName :: Parser Text
 haskellFunctionName = do
@@ -45,6 +58,7 @@ haskellFunctionName = do
   rest  <- many (digit <|> letter <|> underline) 
   return $ T.pack ([first] ++ rest)
 
+-- starts with uppercase letter
 -- Person, Address, PhoneNumber, etc.
 haskellTypeName :: Parser Text
 haskellTypeName = do
@@ -52,54 +66,40 @@ haskellTypeName = do
   rest  <- many (digit <|> letter <|> underline) 
   return $ T.pack ([first] ++ rest)
 
-
--- underscores, single quotes, letters and digits
--- haskellFunctionName :: 
--- haskellTypeName
-
-
-spaceNoNewLine :: Parser Char
-spaceNoNewLine = satisfy (\x -> isSpace x && not (isEndOfLine x)) <?> "spaceNoNewLine"
-
-skipSpaceNoNewline :: Parser ()
-skipSpaceNoNewline = skipWhile (\x -> isSpace x && not (isEndOfLine x))
-
 -- comment functions
 
-parseSingleLineComment :: Parser ()
-parseSingleLineComment = do
+singleLineComment :: Parser Comment
+singleLineComment = do
   string "--"
-  _ <- takeTill isEndOfLine
-  endOfLine <|> endOfInput
-  return ()
+  comment <- takeTill isEndOfLine
+  endOfLine
+  return $ Comment ("--" <> comment <> "\n")
 
-parseEmptyLine :: Parser ()
-parseEmptyLine = do
-  takeWhile (\x -> isSpace x && not (isEndOfLine x))
+
+collectWhiteSpace :: Parser Text
+collectWhiteSpace = do
+  whiteSpace <- takeWhile (\x -> isSpace x && not (isEndOfLine x))
   endOfLine -- <|> endOfInput
-  return ()
+  return $ whiteSpace
 
-parseEmptyLineC :: Parser EntityChild
-parseEmptyLineC = do
-  parseEmptyLine 
-  return $ EntityChildSpace ()
 
--- multiLineComments are not allowed in model files
-{-
-parseMultiLineComment :: Parser ()
-parseMultiLineComment = do
-  string "{-"
-  _ <- many' letter <* (string "-}")
-  return ()
--}
+collectWhiteSpaceX :: Parser WhiteSpace
+collectWhiteSpaceX = do
+  whiteSpace <- takeWhile (\x -> isSpace x && not (isEndOfLine x))
+  endOfLine -- <|> endOfInput
+  return $ WhiteSpace (whiteSpace <> "\n")
+
+
 
 -- main parsing functions
 
 -- [Entity]
 
-parseEntities :: Parser [Entity]
+parseEntities :: Parser [TopLevel]
 parseEntities = do
-  many' parseEntity
+  many' ( TopLevelEntity     <$> parseEntity 
+      <|> TopLevelWhiteSpace <$> collectWhiteSpaceX
+      <|> TopLevelComment    <$> singleLineComment)
 
 
 -- Entity
@@ -108,31 +108,44 @@ parseEntities = do
 
 parseEntity :: Parser Entity
 parseEntity = do
-  many' (parseSingleLineComment <|> parseEmptyLine)
-  -- many' parseSingleLineComment
 
-  entity <- parseEntityName
-
-  entityChildren <- many' (parseEntityField <|> parseEntityUnique <|> parseEntityDerive <|> parseEmptyLineC)
+  entityName <- parseEntityName
+  entityChildren <- many' ( EntityChildEntityField  <$> parseEntityField 
+                        <|> EntityChildEntityUnique <$> parseEntityUnique 
+                        <|> EntityChildEntityDerive <$> parseEntityDerive 
+                        <|> EntityChildWhiteSpace   <$> collectWhiteSpaceX
+                        <|> EntityChildComment      <$> singleLineComment)
   
-  return $ Entity entity (catEntityFields entityChildren) (catEntityUniques entityChildren) (catEntityChildEntityDerives entityChildren) -- entityFields entityUniques entityDerives
+  return $ Entity entityName entityChildren
 
-parseEntityName :: Parser EntityName
+-- EntityName
+
+parseEntityName :: Parser Text
 parseEntityName = do
   name <- haskellTypeName
-  -- skipSpaceNoNewline
   rest <- takeTill isEndOfLine
   endOfLine <|> endOfInput
-  return $ EntityName name
+  return name
 
-parseEntityFieldName :: Parser EntityFieldName
+-- EntityField
+
+parseEntityField :: Parser EntityField
+parseEntityField = do
+  efn <- parseEntityFieldName
+  eft <- parseEntityFieldType
+  rest <- takeTill isEndOfLine
+  endOfLine <|> endOfInput
+
+  return $ EntityField efn eft rest
+
+parseEntityFieldName :: Parser Text
 parseEntityFieldName = do
   many1 spaceNoNewLine
   name <- haskellFunctionName
   
   case name == "deriving" of
     True -> fail "deriving"
-    False -> return $ EntityFieldName name
+    False -> return name
 
 parseEntityFieldType :: Parser EntityFieldType
 parseEntityFieldType = do
@@ -146,52 +159,38 @@ parseEntityFieldType = do
       char ']'
       return $ EntityFieldType name True
   
+-- EntityUnique
 
-parseEntityField :: Parser EntityChild
-parseEntityField = do
-  efn <- parseEntityFieldName
-  eft <- parseEntityFieldType
-  rest <- takeTill isEndOfLine
-  endOfLine <|> endOfInput
-
-  return $ EntityChildEntityField $ EntityField efn eft rest
-
--- Unique
-
-parseEntityUniqueName :: Parser EntityUniqueName
-parseEntityUniqueName = do
-  many1 spaceNoNewLine
-  name <- haskellTypeName
-
-  return $ EntityUniqueName name
-
-parseEntityUniqueEntityFieldName :: Parser EntityUniqueEntityFieldName
-parseEntityUniqueEntityFieldName = do
-  many1 spaceNoNewLine
-  name <- haskellFunctionName
-
-  return $ EntityUniqueEntityFieldName name
-
-parseEntityUnique :: Parser EntityChild
+parseEntityUnique :: Parser EntityUnique
 parseEntityUnique = do
   eun <- parseEntityUniqueName
   euefn <- parseEntityUniqueEntityFieldName
   rest <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
-  return $ EntityChildEntityUnique $ EntityUnique eun euefn rest
+  return $ EntityUnique eun euefn rest
 
+parseEntityUniqueName :: Parser Text
+parseEntityUniqueName = do
+  many1 spaceNoNewLine
+  haskellTypeName
 
--- Derive
+parseEntityUniqueEntityFieldName :: Parser Text
+parseEntityUniqueEntityFieldName = do
+  many1 spaceNoNewLine
+  haskellFunctionName
+  
 
-parseEntityDerive :: Parser EntityChild
+-- EntityDerive
+
+parseEntityDerive :: Parser EntityDerive
 parseEntityDerive = do
   many1 spaceNoNewLine
   string "deriving"
   many1 spaceNoNewLine
   name <- haskellTypeName
-  -- parseEmptyLine
+  
   rest <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
-  return $ EntityChildEntityDerive $ EntityDerive $ EntityDeriveType name
+  return $ EntityDerive name

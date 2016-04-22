@@ -28,7 +28,8 @@ executable persistent-audit
   default-language:    Haskell2010
 
 library 
-  exposed-modules:     Database.Persist.Audit.Parser
+  exposed-modules:     Database.Persist.Audit.Generator
+                       Database.Persist.Audit.Parser
                        Database.Persist.Audit.Types
 
   -- other-modules:
