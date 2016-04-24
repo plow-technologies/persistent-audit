@@ -7,6 +7,7 @@ module Database.Persist.Audit.Parser where
 import           Control.Applicative 
 
 import           Data.Attoparsec.ByteString.Char8 (isSpace)
+import           Data.Attoparsec.Combinator
 import           Data.Attoparsec.Text
 
 import           Data.Monoid ((<>))
@@ -38,10 +39,10 @@ maybeOption :: Parser a -> Parser (Maybe a)
 maybeOption p = option Nothing (Just <$> p)
 
 lowerCase :: Parser Char
-lowerCase = satisfy (\char -> char >= 'a' && char <= 'z')
+lowerCase = satisfy (\c -> c >= 'a' && c <= 'z')
 
 upperCase :: Parser Char
-upperCase = satisfy (\char -> char >= 'A' && char <= 'Z')
+upperCase = satisfy (\c -> c >= 'A' && c <= 'Z')
 
 underline :: Parser Char 
 underline = satisfy (== '_')
@@ -56,6 +57,7 @@ haskellFunctionName :: Parser Text
 haskellFunctionName = do
   first <- lowerCase <|> underline 
   rest  <- many (digit <|> letter <|> underline) 
+  lookAhead ((space *> pure ()) <|> endOfInput)
   return $ T.pack ([first] ++ rest)
 
 -- starts with uppercase letter
@@ -64,13 +66,14 @@ haskellTypeName :: Parser Text
 haskellTypeName = do
   first <- upperCase
   rest  <- many (digit <|> letter <|> underline) 
+  lookAhead ((space *> pure ()) <|> endOfInput)
   return $ T.pack ([first] ++ rest)
 
 -- comment functions
 
 singleLineComment :: Parser Comment
 singleLineComment = do
-  string "--"
+  _ <- string "--"
   comment <- takeTill isEndOfLine
   endOfLine
   return $ Comment ("--" <> comment <> "\n")
@@ -140,7 +143,7 @@ parseEntityField = do
 
 parseEntityFieldName :: Parser Text
 parseEntityFieldName = do
-  many1 spaceNoNewLine
+  _ <- many1 spaceNoNewLine
   name <- haskellFunctionName
   
   case name == "deriving" of
@@ -149,14 +152,14 @@ parseEntityFieldName = do
 
 parseEntityFieldType :: Parser EntityFieldType
 parseEntityFieldType = do
-  many1 spaceNoNewLine
+  _ <- many1 spaceNoNewLine
   mLeftBracket <- maybeOption (char '[')
   name <- haskellTypeName
   
   case mLeftBracket of
     Nothing -> return $ EntityFieldType name False
     Just _  -> do
-      char ']'
+      _ <- char ']'
       return $ EntityFieldType name True
   
 -- EntityUnique
@@ -172,12 +175,12 @@ parseEntityUnique = do
 
 parseEntityUniqueName :: Parser Text
 parseEntityUniqueName = do
-  many1 spaceNoNewLine
+  _ <- many1 spaceNoNewLine
   haskellTypeName
 
 parseEntityUniqueEntityFieldName :: Parser Text
 parseEntityUniqueEntityFieldName = do
-  many1 spaceNoNewLine
+  _ <- many1 spaceNoNewLine
   haskellFunctionName
   
 
@@ -185,12 +188,21 @@ parseEntityUniqueEntityFieldName = do
 
 parseEntityDerive :: Parser EntityDerive
 parseEntityDerive = do
-  many1 spaceNoNewLine
-  string "deriving"
-  many1 spaceNoNewLine
+  _ <- many1 spaceNoNewLine
+  _ <- string "deriving"
+  _ <- many1 spaceNoNewLine
   name <- haskellTypeName
   
   rest <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
   return $ EntityDerive name
+
+
+parseForeignKeyType :: Parser () -- Text
+parseForeignKeyType = do
+  _ <- manyTill anyChar (string "Id" *> endOfInput)
+  return ()
+-- simpleComment   = string "<!--" *> manyTill' anyChar (string "-->")
+-- endOfInput
+

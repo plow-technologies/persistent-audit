@@ -8,43 +8,80 @@ import qualified Data.Text as T
 
 import           Database.Persist.Audit.Types
 
-generateAuditModels :: [TopLevel] -> Text
-generateAuditModels = T.concat . (map printTopLevel)
 
-printTopLevel :: TopLevel -> Text
-printTopLevel (TopLevelEntity     e) = ((_getEntityName e) <> "\n")  
-                                         <> (T.concat $ map printEntityChild $ _getEntityChildren e)
-printTopLevel (TopLevelComment    c) = _getComment c
-printTopLevel (TopLevelWhiteSpace w) = _getWhiteSpace w
 
+-- import           Database.Persist.Types (PersistValue)
+
+
+-- isSuffixOf
 
 {-
-data Entity = Entity {
-  _getEntityName     :: EntityName
-, _getEntityChildren :: [EntityChild]
+stringEndsInId :: String -> (String,Bool)
+stringEndsInId s = case length s >= 2 of
+    False -> (s,False)
+    True -> hasId rs
+  where
+    rs = reverse s
+    hasId ('d':'I':rest) = (reverse rest,True)
+    hasId rest = (reverse rest,False)
+-}
+stringEndsInId :: String -> Bool
+stringEndsInId s = case length s >= 2 of
+    False -> False
+    True -> hasId $ reverse s
+  where
+    hasId ('d':'I':_) = True
+    hasId _ = False
+
+
+
+data AuditGeneratorSettings = AuditGeneratorSettings {
+  childSpacing :: Int
+, auditTag     :: Text
 } deriving (Eq,Show,Read)
--}
 
-printEntityChild :: EntityChild -> Text
-printEntityChild (EntityChildEntityField  f) = "  " <> _getEntityFieldName f <> "\n"
-  -- where
-  --  let ec = _getEntityChildEntityFieldText f
+defaultSettings :: AuditGeneratorSettings
+defaultSettings =  AuditGeneratorSettings 2 "History"
 
-printEntityChild (EntityChildEntityUnique u) = ""
-printEntityChild (EntityChildEntityDerive d) = ""
-printEntityChild (EntityChildComment      c) = _getComment c <> "\n"
-printEntityChild (EntityChildWhiteSpace   w) = ""
+-- replace UserId with PersistValue
+-- replicate (childSpacing settings) ' '
 
-{-
-data EntityChild = EntityChildEntityField  EntityField  |
-                   EntityChildEntityUnique EntityUnique |
-                   EntityChildEntityDerive EntityDerive |
-                   EntityChildComment      Comment      |
-                   EntityChildWhiteSpace   WhiteSpace
-  deriving (Eq,Show,Read)
+generateAuditModels :: AuditGeneratorSettings -> [TopLevel] -> Text
+generateAuditModels settings = T.concat . (map $ (flip T.append "\n") . (printTopLevel settings))
+
+printTopLevel :: AuditGeneratorSettings -> TopLevel -> Text
+printTopLevel settings (TopLevelEntity     e) = (_getEntityName e <> auditTag settings <> "\n")
+                                             <> (T.concat $ map (printEntityChild settings) $ _getEntityChildren e)
+                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "originalId PersistValue\n"
+                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "deleted Bool\n"
+                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedBy Text\n"
+                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedOn UTCTime\n"
+                                             
+printTopLevel settings (TopLevelComment    c) = _getComment c
+printTopLevel settings (TopLevelWhiteSpace w) = _getWhiteSpace w
 
 
-data TopLevel    = TopLevelEntity     Entity     |
-                   TopLevelComment    Comment    |
-                   TopLevelWhiteSpace WhiteSpace  
--}
+printEntityChild :: AuditGeneratorSettings -> EntityChild -> Text
+printEntityChild settings (EntityChildEntityField  f) = "  " <> _getEntityFieldName f <> " "
+                                                    <> r
+                                                    <> _getEntityFieldRest f
+                                                    <> "\n"
+  where
+    eft = _getEntityFieldType f
+    t   = _getEntityFieldTypeText eft
+    eftShow = case _isEntityFieldTypeList eft of
+      False -> t
+      True  -> "[" <> t <> "]"
+    r = case stringEndsInId $ T.unpack eftShow of
+      False -> eftShow
+      True  -> "PersistValue"
+
+printEntityChild settings (EntityChildEntityUnique u) = ""
+                                                    {- "  " <> _getEntityUniqueName u <> " " 
+                                                    <> _getEntityUniqueEntityFieldName u 
+                                                    <> _getEntityUniqueRest u 
+                                                    <> "\n"
+                                                    -}
+printEntityChild settings (EntityChildEntityDerive d) = "  " <> "deriving" <> " " <> _getEntityDeriveType d <> "\n"
+printEntityChild settings (EntityChildComment      c) = _getComment c <> "\n"
+printEntityChild settings (EntityChildWhiteSpace   w) = ""

@@ -8,6 +8,13 @@ data TopLevel    = TopLevelEntity     Entity     |
                    TopLevelWhiteSpace WhiteSpace  
   deriving (Eq,Show,Read)
 
+-- Entity has multiple FieldNames and FieldTypes
+data Entity = Entity {
+  _getEntityName     :: Text
+, _getEntityChildren :: [EntityChild]
+} deriving (Eq,Show,Read)
+
+-- entityrest
 
 data EntityChild = EntityChildEntityField  EntityField  |
                    EntityChildEntityUnique EntityUnique |
@@ -15,12 +22,6 @@ data EntityChild = EntityChildEntityField  EntityField  |
                    EntityChildComment      Comment      |
                    EntityChildWhiteSpace   WhiteSpace
   deriving (Eq,Show,Read)
-
--- Entity has multiple FieldNames and FieldTypes
-data Entity = Entity {
-  _getEntityName     :: Text
-, _getEntityChildren :: [EntityChild]
-} deriving (Eq,Show,Read)
 
 data EntityField = EntityField {
   _getEntityFieldName :: Text
@@ -42,34 +43,6 @@ data EntityFieldType = EntityFieldType {
 data EntityDerive = EntityDerive {
   _getEntityDeriveType :: Text
 } deriving (Eq,Show,Read)
-
-
-{-
-data EntityDerive = EntityDerive {
-  _getEntityDeriveType :: EntityDeriveType
-} deriving (Eq,Show,Read)
-
-data EntityDeriveType = EntityDeriveType {
-  _getEntityDeriveTypeText :: Text
-} deriving (Eq,Show,Read)
-
-data EntityUniqueName = EntityUniqueName {
-  _getEntityUniqueNameText :: Text
-} deriving (Eq,Show,Read)
-
-data EntityUniqueEntityFieldName = EntityUniqueEntityFieldName { 
-  _getEntityUniqueEntityFieldNameText :: Text 
-} deriving (Eq,Show,Read)
-
-data EntityName = EntityName {
-  _getEntityNameText :: Text 
-} deriving (Eq,Show,Read)
-
-data EntityFieldName = EntityFieldName { 
-  _getEntityFieldNameText :: Text 
-} deriving (Eq,Show,Read)
--}
-
 
 
 data WhiteSpace = WhiteSpace {
