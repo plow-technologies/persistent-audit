@@ -22,20 +22,28 @@ executable persistent-audit
   build-depends:       base >=4.8 && < 5
                      , attoparsec
                      , getopt-generics
+                     , persistent
+                     , persistent-template
                      , text
+                     , time
                       
   hs-source-dirs:      src
   default-language:    Haskell2010
 
 library 
-  exposed-modules:     Database.Persist.Audit.Generator
+  exposed-modules:     Database.Persist.Audit.Class
+                       Database.Persist.Audit.Generator
                        Database.Persist.Audit.Parser
                        Database.Persist.Audit.Types
-
+                       Database.Persist.Audit.Queries
   -- other-modules:
   build-depends:       base >=4.8 && < 5
                      , attoparsec
+                     , persistent
+                     , persistent-template
                      , text
+                     , time
+                     , transformers
 
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -52,6 +60,8 @@ test-suite test
   build-depends:     base >=4.8 && < 5
                    , attoparsec
                    , hspec
+                   , persistent
+                   , persistent-template
                    , text    
                    , transformers
                    , QuickCheck

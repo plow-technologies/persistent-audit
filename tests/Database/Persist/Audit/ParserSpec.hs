@@ -128,17 +128,6 @@ spec = do
 
       parseResult `shouldBe` (Right e)
 
-{-
-User
-    ident Text
-    password Text Maybe
-    UniqueUser ident
-    deriving Typeable
-    deriving Generic
-    deriving Eq
-    deriving Show
-    deriving Ord
--}
 
 main :: IO ()
 main = hspec spec

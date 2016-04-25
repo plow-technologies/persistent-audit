@@ -13,35 +13,17 @@ import           Database.Persist.Audit.Types
 -- import           Database.Persist.Types (PersistValue)
 
 
--- isSuffixOf
-
-{-
-stringEndsInId :: String -> (String,Bool)
-stringEndsInId s = case length s >= 2 of
-    False -> (s,False)
-    True -> hasId rs
-  where
-    rs = reverse s
-    hasId ('d':'I':rest) = (reverse rest,True)
-    hasId rest = (reverse rest,False)
--}
-stringEndsInId :: String -> Bool
-stringEndsInId s = case length s >= 2 of
-    False -> False
-    True -> hasId $ reverse s
-  where
-    hasId ('d':'I':_) = True
-    hasId _ = False
-
-
 
 data AuditGeneratorSettings = AuditGeneratorSettings {
   childSpacing :: Int
 , auditTag     :: Text
+, keepEntityDerive :: Bool
+, keepComments :: Bool
+, keepSpacing  :: Bool
 } deriving (Eq,Show,Read)
 
 defaultSettings :: AuditGeneratorSettings
-defaultSettings =  AuditGeneratorSettings 2 "History"
+defaultSettings =  AuditGeneratorSettings 2 "History" True False False
 
 -- replace UserId with PersistValue
 -- replicate (childSpacing settings) ' '
@@ -52,13 +34,18 @@ generateAuditModels settings = T.concat . (map $ (flip T.append "\n") . (printTo
 printTopLevel :: AuditGeneratorSettings -> TopLevel -> Text
 printTopLevel settings (TopLevelEntity     e) = (_getEntityName e <> auditTag settings <> "\n")
                                              <> (T.concat $ map (printEntityChild settings) $ _getEntityChildren e)
-                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "originalId PersistValue\n"
+                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "originalId " <> (_getEntityName e)<> "Id noreference\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "deleted Bool\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedBy Text\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedOn UTCTime\n"
                                              
-printTopLevel settings (TopLevelComment    c) = _getComment c
-printTopLevel settings (TopLevelWhiteSpace w) = _getWhiteSpace w
+printTopLevel settings (TopLevelComment    c) = case keepComments settings of
+                                                  True  -> _getComment c
+                                                  False -> ""
+
+printTopLevel settings (TopLevelWhiteSpace w) = case keepComments settings of
+                                                  True -> _getWhiteSpace w
+                                                  False -> ""
 
 
 printEntityChild :: AuditGeneratorSettings -> EntityChild -> Text
@@ -83,5 +70,17 @@ printEntityChild settings (EntityChildEntityUnique u) = ""
                                                     <> "\n"
                                                     -}
 printEntityChild settings (EntityChildEntityDerive d) = "  " <> "deriving" <> " " <> _getEntityDeriveType d <> "\n"
-printEntityChild settings (EntityChildComment      c) = _getComment c <> "\n"
+printEntityChild settings (EntityChildComment      c) = case keepComments settings of 
+                                                          True  -> _getComment c
+                                                          False -> ""
 printEntityChild settings (EntityChildWhiteSpace   w) = ""
+
+
+-- check if the last two characters of a string are "Id"
+stringEndsInId :: String -> Bool
+stringEndsInId s = case length s >= 2 of
+    False -> False
+    True -> hasId $ reverse s
+  where
+    hasId ('d':'I':_) = True
+    hasId _ = False

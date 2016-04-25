@@ -1,6 +1,10 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.Persist.Audit.Types where
 
 import           Data.Text (Text)
+
+import           Database.Persist.TH
 
 
 data TopLevel    = TopLevelEntity     Entity     |
@@ -52,3 +56,9 @@ data WhiteSpace = WhiteSpace {
 data Comment = Comment {
   _getComment :: Text 
 } deriving (Eq,Show,Read)
+
+
+data AuditAction = Create | Delete | Update 
+  deriving (Show, Read, Eq)
+
+derivePersistField "AuditAction"
