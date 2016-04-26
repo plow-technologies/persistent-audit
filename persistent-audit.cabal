@@ -61,7 +61,9 @@ test-suite test
                    , attoparsec
                    , hspec
                    , persistent
+                   , persistent-sqlite
                    , persistent-template
-                   , text    
+                   , text  
+                   , time  
                    , transformers
                    , QuickCheck
