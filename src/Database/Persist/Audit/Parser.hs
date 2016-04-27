@@ -19,40 +19,11 @@ import           Database.Persist.Audit.Types
 import           Prelude hiding (takeWhile)
 
 
+parseQuasiQuoterFile :: Text -> Either String PersistModelFile
+parseQuasiQuoterFile = parseOnly parseEntities
 
-{- Persist Model
-
--- TopLevelWhiteSpace above
--- TopLevelComment
-User   -- TopLevelEntity
-  name     Text -- EntityLevelEntityField
-
-  -- EntityLevelWhiteSpace
-  -- EntityLevelComment
-  UniqueUser name -- EntityLevelEntityUnique
-  deriving Eq     -- EntityLevelEntityDerive
-
-persistWith allows custom quasiquoter, user should provied a name
-
-
-[persistLowerCase|
-Person
-    name String
-    age Int Maybe
-    deriving Show
-BlogPost
-    title String
-    authorId PersonId
-    deriving Show
-|]
-
-[persistUpperCase|
-Person
-    name String
-    age Int Maybe
-    deriving Show
-|]
--}
+parseModelsFile :: Text -> Either String PersistModelFile
+parseModelsFile = parseOnly parseEntities
 
 -- | Parse Persist Models that are in quasi-quoters. The source could be a haskell file.
 parsePersistQuasiQuoters :: Parser PersistModelFile
@@ -111,8 +82,8 @@ spaceNoNewLine = satisfy (\x -> isSpace x && not (isEndOfLine x)) <?> "spaceNoNe
 haskellFunctionName :: Parser Text
 haskellFunctionName = do
   first <- lowerCase <|> underline 
-  rest  <- many (digit <|> letter <|> underline) 
-  lookAhead ((space *> pure ()) <|> endOfInput)
+  rest  <- many' (digit <|> letter <|> underline) 
+  lookAhead ((space *> pure ()) <|> (char ']' *> pure ()) <|> endOfInput)
   return $ T.pack ([first] ++ rest)
 
 -- | Parse a Haskell type name. It starts with an uppercase letter then 
@@ -121,17 +92,18 @@ haskellFunctionName = do
 haskellTypeName :: Parser Text
 haskellTypeName = do
   first <- upperCase
-  rest  <- many (digit <|> letter <|> underline) 
-  lookAhead ((space *> pure ()) <|> endOfInput)
+  rest  <- many' (digit <|> letter <|> underline) 
+  -- check for ']' because it could be in a list
+  lookAhead ((space *> pure ()) <|> (char ']' *> pure ())  <|> endOfInput )
   return $ T.pack ([first] ++ rest)
 
 -- | Parse a comment that starts with "-- ".
 singleLineComment :: Parser Comment
 singleLineComment = do
-  _ <- string "-- "
+  _ <- string "--"
   comment <- takeTill isEndOfLine
   endOfLine
-  return $ Comment ("-- " <> comment <> "\n")
+  return $ Comment ("--" <> comment <> "\n")
 
 
 collectWhiteSpace :: Parser WhiteSpace

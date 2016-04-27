@@ -4,11 +4,9 @@
 
 module Main where
 
-import           Data.Attoparsec.Text
-
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Text.IO (putStr, readFile)
+import           Data.Text.IO
 
 import           Database.Persist.Audit.Generator
 import           Database.Persist.Audit.Parser
@@ -27,25 +25,32 @@ principles
 -}
 
 data CmdOptions = CmdOptions {
-  modelsInputFile  :: Maybe FilePath
-, modelsOutputFile :: Maybe FilePath
+  model         :: FilePath
+, audit         :: FilePath
+, auditInstance :: Maybe FilePath
 } deriving (Generic, Show, Eq)
 
 instance HasArguments CmdOptions
 
 main :: IO ()
-main = withCliModified mods $ \ (f :: CmdOptions) -> do
+main = withCliModified mods $ \ (ops :: CmdOptions) -> do
   
-  m <- Data.Text.IO.readFile "modelsMongo"
-  
-  let x = parseOnly parseEntities m
+  m <- Data.Text.IO.readFile $ model ops
 
-  case x of 
-    Left _ -> return ()
-    Right r -> Data.Text.IO.putStr $ generateAuditModels defaultSettings r
+  case parseModelsFile m of 
+    Left _ -> print $ "Failed to parse the models file with parseEntities function."
+    Right models -> do
+      Data.Text.IO.writeFile (audit ops) (generateAuditModels defaultSettings models)
+      case auditInstance ops of
+        Nothing -> return ()
+        Just auditInstanceFile -> do
+          Data.Text.IO.writeFile auditInstanceFile (generateToAuditInstances defaultSettings models)
+          return ()
   
+
   where
     mods =
-      AddShortOption "modelsInputFile"  'i' :
-      AddShortOption "modelsOutputFile" 'o' :
+      AddShortOption "model" 'm' :
+      AddShortOption "audit" 'a' :
+      AddShortOption "auditInstance" 'i' :
       []

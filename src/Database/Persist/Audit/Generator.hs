@@ -89,7 +89,7 @@ printToAuditInstance settings (PersistModelFileEntity e) =  "instance ToAudit " 
                                     <> "  type AuditResult " <> entityName <> " = " <> auditEntityName <> "\n"
                                     <> "  toAudit v k auditAction editedBy editedOn = " <> auditEntityName <> "\n"
                                     <> (T.concat $ map (printModelAccessor entityName) entityChildren)
-                                    <> "    k auditAction editedBy editedOn\n"
+                                    <> "    k auditAction editedBy editedOn\n\n"
   where
     entityName = _getEntityName e
     auditEntityName = entityName <> (auditTag settings)

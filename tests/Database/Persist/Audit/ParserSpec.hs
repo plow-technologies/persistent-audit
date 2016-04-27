@@ -6,7 +6,7 @@ module Database.Persist.Audit.ParserSpec ( main
 
 import           Data.Attoparsec.Text
 import           Data.Either
-
+import           Data.Text (Text)
 import           Database.Persist.Audit.Parser
 import           Database.Persist.Audit.Types
 
@@ -17,6 +17,15 @@ import           Test.Hspec                             ( Spec
                                                         , shouldBe
                                                         , shouldMatchList)
 
+
+{-
+Person
+  name Text
+  phoneNumbers [Text] Maybe
+-}
+
+personModel :: Text
+personModel = "Person\n  name Text\n  phoneNumbers [Text] Maybe\n"
 
 spec :: Spec
 spec = do
@@ -80,6 +89,22 @@ spec = do
       let parseResult = parseOnly haskellTypeName "person"
       isLeft parseResult `shouldBe` True
 
+    it "Should not parse type names with symbols other than letters, numbers and underscores" $ do
+      let parseResults = [ parseOnly haskellTypeName "Get!"
+                         , parseOnly haskellTypeName "Get$"
+                         , parseOnly haskellTypeName "Get+"
+                         , parseOnly haskellTypeName "Get="
+                         , parseOnly haskellTypeName "Get-"
+                         ]
+      (rights parseResults) `shouldMatchList` []
+
+  describe "parseEntityFieldType" $ do
+    it "Should parse a well formed entity field type" $ do
+      let sampleEntityFieldType = " [Int]"
+      let eft = EntityFieldType "Int" True
+      let parseResult = parseOnly parseEntityFieldType sampleEntityFieldType
+      parseResult `shouldBe` (Right eft) 
+      
   describe "parseEntityField" $ do
     it "Should parse a well formed entity field" $ do
       let sampleEntityField = "  ident Text"
@@ -88,6 +113,13 @@ spec = do
       let parseResult = parseOnly parseEntityField sampleEntityField
       parseResult `shouldBe` (Right ef) 
     
+    it "Should parse a well formed entity field" $ do
+      let sampleEntityField = "  phoneNumbers [Int]"
+      let eft = EntityFieldType "Int" True
+      let ef  = EntityField "phoneNumbers" eft ""
+      let parseResult = parseOnly parseEntityField sampleEntityField
+      parseResult `shouldBe` (Right ef) 
+      
     it "Should fail to parse an unindented entity field" $ do
       let sampleEntityField = "ident Text"
       let parseResult = parseOnly parseEntityField sampleEntityField
@@ -126,6 +158,10 @@ spec = do
 
       parseResult `shouldBe` (Right e)
 
+    it "Should parse a well formed entity that has a maybe list data type" $ do
+      let parseResult = parseOnly parseEntity personModel
+      (isRight parseResult) `shouldBe` True
+    
   describe "parsePersistQuasiQuoters" $ do
     it "Should parse a well formed entity" $ do
       let sampleEntity = "[persistLowerCase|User\n ident Text\n password Text Maybe\n UniqueUser ident\n deriving Eq\n|]"
