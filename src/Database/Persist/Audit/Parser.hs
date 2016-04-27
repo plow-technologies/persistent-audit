@@ -31,28 +31,83 @@ User   -- TopLevelEntity
   -- EntityLevelComment
   UniqueUser name -- EntityLevelEntityUnique
   deriving Eq     -- EntityLevelEntityDerive
+
+persistWith allows custom quasiquoter, user should provied a name
+
+
+[persistLowerCase|
+Person
+    name String
+    age Int Maybe
+    deriving Show
+BlogPost
+    title String
+    authorId PersonId
+    deriving Show
+|]
+
+[persistUpperCase|
+Person
+    name String
+    age Int Maybe
+    deriving Show
+|]
 -}
+
+-- | Parse Persist Models that are in quasi-quoters. The source could be a haskell file.
+parsePersistQuasiQuoters :: Parser PersistModelFile
+parsePersistQuasiQuoters = do
+  _ <- manyTill' anyChar (string "[persistLowerCase|" <|> string "[persistUpperCase|")
+  manyTill' ( PersistModelFileEntity     <$> parseEntity 
+      <|> PersistModelFileWhiteSpace <$> collectWhiteSpace
+      <|> PersistModelFileComment    <$> singleLineComment) (string "|]")
+
+-- | Parse a Persist Model file.
+parseEntities :: Parser PersistModelFile
+parseEntities = do
+  many' ( PersistModelFileEntity     <$> parseEntity 
+      <|> PersistModelFileWhiteSpace <$> collectWhiteSpace
+      <|> PersistModelFileComment    <$> singleLineComment)
+
+-- | Parse a single Persist Entity
+parseEntity :: Parser Entity
+parseEntity = do
+
+  entityName <- parseEntityName
+  entityChildren <- many' ( EntityChildEntityField  <$> parseEntityField 
+                        <|> EntityChildEntityUnique <$> parseEntityUnique 
+                        <|> EntityChildEntityDerive <$> parseEntityDerive 
+                        <|> EntityChildWhiteSpace   <$> collectWhiteSpace
+                        <|> EntityChildComment      <$> singleLineComment)
+  
+  return $ Entity entityName entityChildren
+
   
 -- helper functions
 
+-- | Wrap a Parser in 'Maybe' because it might fail. Useful for making choices.
 maybeOption :: Parser a -> Parser (Maybe a)
 maybeOption p = option Nothing (Just <$> p)
 
+-- | Parse a lowercase 'Char'.
 lowerCase :: Parser Char
 lowerCase = satisfy (\c -> c >= 'a' && c <= 'z')
 
+-- | Parse an uppercase 'Char'.
 upperCase :: Parser Char
 upperCase = satisfy (\c -> c >= 'A' && c <= 'Z')
 
+-- | Parse an underline.
 underline :: Parser Char 
 underline = satisfy (== '_')
 
+-- | Parse any space 'Char' excluding "\n".
 spaceNoNewLine :: Parser Char
 spaceNoNewLine = satisfy (\x -> isSpace x && not (isEndOfLine x)) <?> "spaceNoNewLine"
 
--- starts with underscore or lowercase letter
--- underscores, single quotes, letters and digits
--- get, _get, get_1, etc.
+-- | Parse a Haskell function name. It starts with underscore or lowercase letter then 
+-- is followed by a combination of underscores, single quotes, letters and digits.
+-- E.g., "get", "_get", "get_1", etc.
 haskellFunctionName :: Parser Text
 haskellFunctionName = do
   first <- lowerCase <|> underline 
@@ -60,8 +115,9 @@ haskellFunctionName = do
   lookAhead ((space *> pure ()) <|> endOfInput)
   return $ T.pack ([first] ++ rest)
 
--- starts with uppercase letter
--- Person, Address, PhoneNumber, etc.
+-- | Parse a Haskell type name. It starts with an uppercase letter then 
+-- is followed by a combination of underscores, single quotes, letters and digits.
+-- E.g., "Person", "Address", "PhoneNumber", etc.
 haskellTypeName :: Parser Text
 haskellTypeName = do
   first <- upperCase
@@ -69,25 +125,17 @@ haskellTypeName = do
   lookAhead ((space *> pure ()) <|> endOfInput)
   return $ T.pack ([first] ++ rest)
 
--- comment functions
-
+-- | Parse a comment that starts with "-- ".
 singleLineComment :: Parser Comment
 singleLineComment = do
-  _ <- string "--"
+  _ <- string "-- "
   comment <- takeTill isEndOfLine
   endOfLine
-  return $ Comment ("--" <> comment <> "\n")
+  return $ Comment ("-- " <> comment <> "\n")
 
 
-collectWhiteSpace :: Parser Text
+collectWhiteSpace :: Parser WhiteSpace
 collectWhiteSpace = do
-  whiteSpace <- takeWhile (\x -> isSpace x && not (isEndOfLine x))
-  endOfLine -- <|> endOfInput
-  return $ whiteSpace
-
-
-collectWhiteSpaceX :: Parser WhiteSpace
-collectWhiteSpaceX = do
   whiteSpace <- takeWhile (\x -> isSpace x && not (isEndOfLine x))
   endOfLine -- <|> endOfInput
   return $ WhiteSpace (whiteSpace <> "\n")
@@ -98,28 +146,6 @@ collectWhiteSpaceX = do
 
 -- [Entity]
 
-parseEntities :: Parser [TopLevel]
-parseEntities = do
-  many' ( TopLevelEntity     <$> parseEntity 
-      <|> TopLevelWhiteSpace <$> collectWhiteSpaceX
-      <|> TopLevelComment    <$> singleLineComment)
-
-
--- Entity
-
--- order of fieldType, deriving, unique does not matter
-
-parseEntity :: Parser Entity
-parseEntity = do
-
-  entityName <- parseEntityName
-  entityChildren <- many' ( EntityChildEntityField  <$> parseEntityField 
-                        <|> EntityChildEntityUnique <$> parseEntityUnique 
-                        <|> EntityChildEntityDerive <$> parseEntityDerive 
-                        <|> EntityChildWhiteSpace   <$> collectWhiteSpaceX
-                        <|> EntityChildComment      <$> singleLineComment)
-  
-  return $ Entity entityName entityChildren
 
 -- EntityName
 

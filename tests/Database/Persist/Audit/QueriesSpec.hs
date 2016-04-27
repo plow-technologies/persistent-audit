@@ -126,9 +126,5 @@ spec = do
         Nothing -> False `shouldBe` True
         Just _ -> True `shouldBe` True
 
-
--- assertFailure
--- Test.HUnit.Lang
-
 main :: IO ()
 main = hspec spec

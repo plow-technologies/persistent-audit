@@ -6,8 +6,6 @@ module Database.Persist.Audit.ParserSpec ( main
 
 import           Data.Attoparsec.Text
 import           Data.Either
-import           Data.Text                              (Text)
--- import qualified Data.Text                              as T
 
 import           Database.Persist.Audit.Parser
 import           Database.Persist.Audit.Types
@@ -128,6 +126,24 @@ spec = do
 
       parseResult `shouldBe` (Right e)
 
+  describe "parsePersistQuasiQuoters" $ do
+    it "Should parse a well formed entity" $ do
+      let sampleEntity = "[persistLowerCase|User\n ident Text\n password Text Maybe\n UniqueUser ident\n deriving Eq\n|]"
+      let parseResult = parseOnly parsePersistQuasiQuoters sampleEntity
+
+      let eft1 = EntityFieldType "Text" False
+      let ef1  = EntityChildEntityField $ EntityField "ident" eft1 ""
+
+      let eft2 = EntityFieldType "Text" False
+      let ef2  = EntityChildEntityField $ EntityField "password" eft2 " Maybe"
+
+      let eu = EntityChildEntityUnique $ EntityUnique "UniqueUser" "ident" ""
+
+      let ed = EntityChildEntityDerive $ EntityDerive "Eq"
+
+      let e = [PersistModelFileEntity $ Entity "User" [ef1,ef2,eu,ed]]
+
+      parseResult `shouldBe` (Right e)
 
 main :: IO ()
 main = hspec spec

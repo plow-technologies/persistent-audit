@@ -3,80 +3,111 @@
 module Database.Persist.Audit.Generator where
 
 import           Data.Monoid ((<>))
+import           Data.Char 
 import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           Database.Persist.Audit.Types
 
 
-
--- import           Database.Persist.Types (PersistValue)
-
-
-
+-- | Five options for generating Audit Models and ToAudit Instances.
 data AuditGeneratorSettings = AuditGeneratorSettings {
-  childSpacing :: Int
-, auditTag     :: Text
-, keepEntityDerive :: Bool
-, keepComments :: Bool
-, keepSpacing  :: Bool
+  childSpacing     :: Int   -- ^ The number of spaces to add for all items that appear under an EntityName. 
+, auditTag         :: Text  -- ^ The tag that will be added to the original model name in the generated audit models. If 'auditTag' is "History" then "User" will become "UserHistory".
+, keepEntityDerive :: Bool  -- ^ If 'True', the generated Audit Models will maintain the same derived Type Classes as the original file.
+, keepComments     :: Bool  -- ^ If 'True', the generated Audit Models will maintain the same comments as the original file.
+, keepSpacing      :: Bool  -- ^ If 'True', the generated Audit Models will maintain the same spacing as the original file.
 } deriving (Eq,Show,Read)
 
+
+-- | Settings that the author assumed would be most common.
 defaultSettings :: AuditGeneratorSettings
-defaultSettings =  AuditGeneratorSettings 2 "History" True False False
+defaultSettings =  AuditGeneratorSettings 2 "Audit" True False False
 
--- replace UserId with PersistValue
--- replicate (childSpacing settings) ' '
 
-generateAuditModels :: AuditGeneratorSettings -> [TopLevel] -> Text
+-- | Convert a list of 'TopLevel' to a list of Audit Models in 'Text'.
+generateAuditModels :: AuditGeneratorSettings -> PersistModelFile -> Text
 generateAuditModels settings = T.concat . (map $ (flip T.append "\n") . (printTopLevel settings))
 
-printTopLevel :: AuditGeneratorSettings -> TopLevel -> Text
-printTopLevel settings (TopLevelEntity     e) = (_getEntityName e <> auditTag settings <> "\n")
+-- | Convert a 'TopLevel' to an Audit Model, white space or comment in 'Text'.
+printTopLevel :: AuditGeneratorSettings -> PersistModelFilePiece -> Text
+printTopLevel settings (PersistModelFileEntity     e) = (_getEntityName e <> auditTag settings <> "\n")
                                              <> (T.concat $ map (printEntityChild settings) $ _getEntityChildren e)
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "originalId " <> (_getEntityName e)<> "Id noreference\n"
-                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "deleted Bool\n"
+                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "auditAction AuditAction\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedBy Text\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedOn UTCTime\n"
                                              
-printTopLevel settings (TopLevelComment    c) = case keepComments settings of
+printTopLevel settings (PersistModelFileComment    c) = case keepComments settings of
                                                   True  -> _getComment c
                                                   False -> ""
 
-printTopLevel settings (TopLevelWhiteSpace w) = case keepComments settings of
+printTopLevel settings (PersistModelFileWhiteSpace w) = case keepSpacing settings of
                                                   True -> _getWhiteSpace w
                                                   False -> ""
 
-
+-- | Convert an 'EntityChild' to a piece of an Audit Model in 'Text'.
 printEntityChild :: AuditGeneratorSettings -> EntityChild -> Text
-printEntityChild settings (EntityChildEntityField  f) = "  " <> _getEntityFieldName f <> " "
+printEntityChild _        (EntityChildEntityField  f) = "  " <> entityFieldName <> " "
                                                     <> r
-                                                    <> _getEntityFieldRest f
+                                                    <> entityFieldRest
                                                     <> "\n"
   where
+    entityFieldName = _getEntityFieldName f
+    entityFieldRest = _getEntityFieldRest f 
     eft = _getEntityFieldType f
+
     t   = _getEntityFieldTypeText eft
+    
     eftShow = case _isEntityFieldTypeList eft of
       False -> t
       True  -> "[" <> t <> "]"
+    
     r = case stringEndsInId $ T.unpack eftShow of
       False -> eftShow
       True  -> "PersistValue"
 
-printEntityChild settings (EntityChildEntityUnique u) = ""
-                                                    {- "  " <> _getEntityUniqueName u <> " " 
-                                                    <> _getEntityUniqueEntityFieldName u 
-                                                    <> _getEntityUniqueRest u 
-                                                    <> "\n"
-                                                    -}
-printEntityChild settings (EntityChildEntityDerive d) = "  " <> "deriving" <> " " <> _getEntityDeriveType d <> "\n"
+printEntityChild _        (EntityChildEntityUnique _) = ""
+printEntityChild _        (EntityChildEntityDerive d) = "  " <> "deriving" <> " " <> _getEntityDeriveType d <> "\n"
 printEntityChild settings (EntityChildComment      c) = case keepComments settings of 
                                                           True  -> _getComment c
                                                           False -> ""
-printEntityChild settings (EntityChildWhiteSpace   w) = ""
+
+printEntityChild settings (EntityChildWhiteSpace   w) = case keepSpacing settings of
+                                                          True -> _getWhiteSpace w
+                                                          False -> ""
 
 
--- check if the last two characters of a string are "Id"
+
+-- | Convert a list of 'TopLevel' to a to a list of 'ToAudit' in 'Text'.
+generateToAuditInstances ::  AuditGeneratorSettings -> PersistModelFile -> Text
+generateToAuditInstances settings = T.concat . (map $ printToAuditInstance settings)
+
+-- | Convert 'TopLevel' to an instance of 'ToAudit' in 'Text'.
+printToAuditInstance :: AuditGeneratorSettings -> PersistModelFilePiece -> Text
+printToAuditInstance settings (PersistModelFileEntity e) =  "instance ToAudit " <> entityName <> " where\n"
+                                    <> "  type AuditResult " <> entityName <> " = " <> auditEntityName <> "\n"
+                                    <> "  toAudit v k auditAction editedBy editedOn = " <> auditEntityName <> "\n"
+                                    <> (T.concat $ map (printModelAccessor entityName) entityChildren)
+                                    <> "    k auditAction editedBy editedOn\n"
+  where
+    entityName = _getEntityName e
+    auditEntityName = entityName <> (auditTag settings)
+    entityChildren = _getEntityChildren e
+
+printToAuditInstance _ _ = ""
+
+
+-- | Convert 'EntityChild' to a Model accessor.
+printModelAccessor :: Text -> EntityChild -> Text
+printModelAccessor entityName (EntityChildEntityField f) = "    (" 
+                                                        <> (T.pack . firstLetterToLowerCase . T.unpack $ entityName) 
+                                                        <> (T.pack . firstLetterToUpperCase . T.unpack $ _getEntityFieldName f)
+                                                        <> " v)\n"
+printModelAccessor _ _ = ""
+
+
+-- | Return true if the last two characters are "Id".
 stringEndsInId :: String -> Bool
 stringEndsInId s = case length s >= 2 of
     False -> False
@@ -84,3 +115,14 @@ stringEndsInId s = case length s >= 2 of
   where
     hasId ('d':'I':_) = True
     hasId _ = False
+
+
+-- | Convert the first letter of a 'String' to the corresponding uppercase letter.
+firstLetterToUpperCase :: String -> String
+firstLetterToUpperCase (h:r) = toUpper h : r
+firstLetterToUpperCase _     = []
+
+-- | Convert the first letter of a 'String' to the corresponsing lowercase letter.
+firstLetterToLowerCase :: String -> String
+firstLetterToLowerCase (h:r) = toLower h : r
+firstLetterToLowerCase _     = []

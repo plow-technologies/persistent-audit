@@ -3,14 +3,14 @@
 
 name:                persistent-audit
 version:             0.0.0.0
-synopsis:            Takes a Persist file and produces audit models in another file
--- description:         
+synopsis:            Parses a Persist Model file and produces Audit Models
+description:         Simplify database audits
 license:             BSD3
 license-file:        LICENSE
 author:              James M.C. Haver II
 maintainer:          mchaver@gmail.com
--- copyright:           
-category:            Database
+category:            Database, Yesod, Persistent
+stability:           Beta
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
@@ -66,4 +66,3 @@ test-suite test
                    , text  
                    , time  
                    , transformers
-                   , QuickCheck
