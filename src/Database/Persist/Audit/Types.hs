@@ -74,6 +74,6 @@ data Comment = Comment {
 
 -- | Annotations for each Audit Model to keep track of why it was inserted. 
 data AuditAction = Create | Delete | Update 
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Ord)
 
 derivePersistField "AuditAction"

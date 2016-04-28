@@ -29,7 +29,11 @@ User
     deriving Show
     deriving Ord
 
-instance ToAudit user where
+Phone
+    number Int
+    user UserId
+
+instance ToAudit User where
   type AuditResult User = UserAudit
   toAudit v k auditAction editedBy editedOn = UserAudit (userIdent v)
     (userPassword v)
@@ -46,11 +50,17 @@ instance ToAudit Person where
 userModel :: Text
 userModel = "User\n  ident Text\n  password Text Maybe\n UniqueUser ident\n  deriving Typeable\n deriving Generic\n  deriving Eq\n  deriving Show\n  deriving Ord"
 
+phoneModel :: Text
+phoneModel = "Phone\n  number Int\n  user UserId"
+
 userToAuditInstance :: Text
-userToAuditInstance = "instance ToAudit User where\n  type AuditResult User = UserAudit\n  toAudit v k auditAction editedBy editedOn = UserAudit\n    (userIdent v)\n    (userPassword v)\n    k auditAction editedBy editedOn\n"
+userToAuditInstance = "instance ToAudit User where\n  type AuditResult User = UserAudit\n  toAudit v k auditAction editedBy editedOn = UserAudit\n    (userIdent v)\n    (userPassword v)\n    k auditAction editedBy editedOn\n\n"
 
 userAuditModel :: Text
 userAuditModel = "UserAudit\n  ident Text\n  password Text Maybe\n  deriving Typeable\n  deriving Generic\n  deriving Eq\n  deriving Show\n  deriving Ord\n  originalId UserId noreference\n  auditAction AuditAction\n  editedBy Text\n  editedOn UTCTime\n\n"
+
+phoneAuditModel :: Text
+phoneAuditModel = "PhoneAudit\n  number Int\n  user UserId noreference\n  originalId PhoneId noreference\n  auditAction AuditAction\n  editedBy Text\n  editedOn UTCTime\n\n"
 
 spec :: Spec
 spec = do
@@ -61,10 +71,17 @@ spec = do
         Left _ -> False `shouldBe` True
         Right es -> do 
           let generatedAuditModels = generateAuditModels defaultSettings es
-          -- liftIO $ print generatedAuditModels
-          -- liftIO $ print output
           generatedAuditModels == userAuditModel `shouldBe` True
-  
+      
+    it "should add noreference tag to foreign refereces" $ do
+      let parseResult = parseOnly parseEntities phoneModel
+      case parseResult of 
+        Left _ -> False `shouldBe` True
+        Right es -> do 
+          let generatedAuditModels = generateAuditModels defaultSettings es
+          generatedAuditModels == phoneAuditModel `shouldBe` True
+      
+
   describe "ToAudit instance generator" $ do
     it "should generate an instance from a model" $ do
       let parseResult = parseOnly parseEntities userModel

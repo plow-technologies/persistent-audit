@@ -22,7 +22,7 @@ executable persistent-audit
   build-depends:       base >=4.8 && < 5
                      , attoparsec
                      , getopt-generics
-                     , persistent
+                     , persistent  >= 2.2
                      , persistent-template
                      , text
                      , time
@@ -39,7 +39,7 @@ library
   -- other-modules:
   build-depends:       base >=4.8 && < 5
                      , attoparsec
-                     , persistent
+                     , persistent >= 2.2
                      , persistent-template
                      , text
                      , time
@@ -60,7 +60,7 @@ test-suite test
   build-depends:     base >=4.8 && < 5
                    , attoparsec
                    , hspec
-                   , persistent
+                   , persistent >= 2.2
                    , persistent-sqlite
                    , persistent-template
                    , text  

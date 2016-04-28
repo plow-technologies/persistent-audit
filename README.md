@@ -1,6 +1,6 @@
 # persistent-audit
 
-This package includes an executable that takes a Persistent models (tables) file and returns a Persistent models file with audit models (tables) for each individual table in the original file. It can optionally return a file with an implementation of the `ToAudit` class for each pair of model and its audit model. 
+This package includes an executable that takes a Persistent models (tables) file and returns a Persistent models file with audit models (tables) for each individual table in the original file. It can optionally return a file with an implementation of the `ToAudit` class for each pair of model and its audit model. Currently supports Persistent >= 2.2 && <= 2.5.
 
 The executable can be run like this:
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
@@ -16,19 +17,18 @@ import Data.Time
 import Database.Persist
 import Database.Persist.Audit.Class
 import Database.Persist.Audit.Types
-import Database.Persist.Class
-
-
 
 -- PersistStore
 
 insertAndAudit :: ( MonadIO m
-                  , PersistStore backend
-                  , backend ~ BaseBackend backend
+#if MIN_VERSION_persistent(2,5,0)
+                  , backend ~ BaseBackend backend    
+#endif
                   , backend ~ PersistEntityBackend val
                   , backend ~ PersistEntityBackend (AuditResult val)
                   , PersistEntity val
                   , PersistEntity (AuditResult val)
+                  , PersistStore backend
                   , ToAudit val) => 
                   val -> 
                   Text -> 
@@ -41,13 +41,15 @@ insertAndAudit val userName = do
 
 -- delete based on id
 deleteAndAudit :: ( MonadIO m
-                  , PersistStore backend
-                  , backend ~ BaseBackend backend
+#if MIN_VERSION_persistent(2,5,0)
+                  , backend ~ BaseBackend backend    
+#endif
                   , backend ~ PersistEntityBackend val
                   , backend ~ PersistEntityBackend (AuditResult val)
                   , PersistEntity val
                   , PersistEntity (AuditResult val)
-                  , ToAudit val) => 
+                  , PersistStore backend
+                  , ToAudit val) =>
                   Key val ->  
                   Text -> 
                   ReaderT backend m ()
@@ -62,18 +64,20 @@ deleteAndAudit key userName = do
       return ()
 
 
-updateAndAudit  :: ( MonadIO m
-                  , PersistStore backend
-                  , backend ~ BaseBackend backend
+updateAndAudit :: ( MonadIO m
+#if MIN_VERSION_persistent(2,5,0)
+                  , backend ~ BaseBackend backend    
+#endif
                   , backend ~ PersistEntityBackend val
                   , backend ~ PersistEntityBackend (AuditResult val)
                   , PersistEntity val
                   , PersistEntity (AuditResult val)
-                  , ToAudit val) => 
-                  Key val -> 
-                  [Update val] ->
-                  Text -> 
-                  ReaderT backend m ()
+                  , PersistStore backend
+                  , ToAudit val) =>
+                   Key val -> 
+                   [Update val] ->
+                   Text -> 
+                   ReaderT backend m ()
 updateAndAudit key updateVals userName = do
   update key updateVals
   mVal <- get key
@@ -87,7 +91,22 @@ updateAndAudit key updateVals userName = do
 
 -- PersistQuery
 
+
 deleteWhereAndAudit :: ( MonadIO m
+#if MIN_VERSION_persistent(2,5,0)
+                       , backend ~ BaseBackend backend
+                       , PersistQueryWrite backend
+#else 
+                       , PersistQuery backend
+#endif
+                       , backend ~ PersistEntityBackend val
+                       , backend ~ PersistEntityBackend (AuditResult val)
+                       , PersistEntity val
+                       , PersistEntity (AuditResult val)
+                       , PersistStore backend
+                       , ToAudit val) =>
+{-
+                       ( MonadIO m
                        , PersistStore backend
                        , PersistQueryWrite backend
                        , backend ~ BaseBackend backend
@@ -95,7 +114,8 @@ deleteWhereAndAudit :: ( MonadIO m
                        , backend ~ PersistEntityBackend (AuditResult val)
                        , PersistEntity val
                        , PersistEntity (AuditResult val)
-                       , ToAudit val) => 
+                       , ToAudit val) =>
+-} 
                        [Filter val] ->  
                        Text -> 
                        ReaderT backend m ()
@@ -109,15 +129,20 @@ deleteWhereAndAudit filters userName = do
   deleteWhere filters
   return ()
 
+
 updateWhereAndAudit :: ( MonadIO m
-                       , PersistStore backend
-                       , PersistQueryWrite backend
+#if MIN_VERSION_persistent(2,5,0)
                        , backend ~ BaseBackend backend
+                       , PersistQueryWrite backend
+#else 
+                       , PersistQuery backend
+#endif
                        , backend ~ PersistEntityBackend val
                        , backend ~ PersistEntityBackend (AuditResult val)
                        , PersistEntity val
                        , PersistEntity (AuditResult val)
-                       , ToAudit val) => 
+                       , PersistStore backend
+                       , ToAudit val) =>
                        [Filter val] ->
                        [Update val] ->
                        Text -> 

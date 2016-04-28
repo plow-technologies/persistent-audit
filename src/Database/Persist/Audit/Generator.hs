@@ -65,7 +65,7 @@ printEntityChild _        (EntityChildEntityField  f) = "  " <> entityFieldName 
     
     r = case stringEndsInId $ T.unpack eftShow of
       False -> eftShow
-      True  -> "PersistValue"
+      True  -> eftShow <> " noreference"
 
 printEntityChild _        (EntityChildEntityUnique _) = ""
 printEntityChild _        (EntityChildEntityDerive d) = "  " <> "deriving" <> " " <> _getEntityDeriveType d <> "\n"
