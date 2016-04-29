@@ -36,15 +36,15 @@ main :: IO ()
 main = withCliModified mods $ \ (ops :: CmdOptions) -> do
   
   m <- Data.Text.IO.readFile $ model ops
-
+  let settings = defaultSettings {foreignKeyType = MongoKeyInSQL}
   case parseModelsFile m of 
     Left _ -> print $ "Failed to parse the models file with parseEntities function."
     Right models -> do
-      Data.Text.IO.writeFile (audit ops) (generateAuditModels defaultSettings models)
+      Data.Text.IO.writeFile (audit ops) (generateAuditModels settings models)
       case auditInstance ops of
         Nothing -> return ()
         Just auditInstanceFile -> do
-          Data.Text.IO.writeFile auditInstanceFile (generateToAuditInstances defaultSettings models)
+          Data.Text.IO.writeFile auditInstanceFile (generateToAuditInstances settings models)
           return ()
   
 

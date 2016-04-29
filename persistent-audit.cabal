@@ -21,8 +21,11 @@ executable persistent-audit
   -- other-extensions:    
   build-depends:       base >=4.8 && < 5
                      , attoparsec
+                     , bytestring
                      , getopt-generics
+                     , mongoDB
                      , persistent  >= 2.2
+                     , persistent-mongoDB
                      , persistent-template
                      , text
                      , time
@@ -33,13 +36,17 @@ executable persistent-audit
 library 
   exposed-modules:     Database.Persist.Audit.Class
                        Database.Persist.Audit.Generator
+                       Database.Persist.Audit.MongoDB.Util
                        Database.Persist.Audit.Parser
                        Database.Persist.Audit.Types
                        Database.Persist.Audit.Queries
   -- other-modules:
   build-depends:       base >=4.8 && < 5
                      , attoparsec
+                     , bytestring
+                     , mongoDB
                      , persistent >= 2.2
+                     , persistent-mongoDB
                      , persistent-template
                      , text
                      , time
@@ -59,9 +66,12 @@ test-suite test
   ghc-options:       -threaded -O0 -Wall
   build-depends:     base >=4.8 && < 5
                    , attoparsec
+                   , bytestring
                    , hspec
+                   , mongoDB
                    , persistent >= 2.2
                    , persistent-sqlite
+                   , persistent-mongoDB
                    , persistent-template
                    , text  
                    , time  
