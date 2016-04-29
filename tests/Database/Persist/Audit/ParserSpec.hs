@@ -83,6 +83,19 @@ spec = do
       let parseResult = parseOnly haskellTypeName "Person"
       parseResult `shouldBe` (Right "Person")
 
+    it "Should parse strict type names" $ do
+      let parseResult = parseOnly haskellTypeName "!Get"
+      parseResult `shouldBe` (Right "Get")
+    
+      -- parseResult `shouldBe` (Right "!Get")
+    
+    it "Should parse lazy type names" $ do
+      let parseResult = parseOnly haskellTypeName "~Get"
+      parseResult `shouldBe` (Right "Get")
+    
+      -- parseResult `shouldBe` (Right "~Get")
+    
+
     -- should fail
 
     it "Should not parse type names starting with a lowercase letter" $ do
@@ -98,13 +111,77 @@ spec = do
                          ]
       (rights parseResults) `shouldMatchList` []
 
+  describe "parseMigrationOnlyAndSafeToRemove" $ do
+    it "Should parse MigrationOnly" $ do
+      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "     MigrationOnly"
+      parseResult `shouldBe` (Right (True,False))
+
+    it "Should parse SafeToRemove" $ do
+      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "   SafeToRemove"
+      parseResult `shouldBe` (Right (False,True)) 
+
+    it "Should parse empty space" $ do
+      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "     "
+      parseResult `shouldBe` (Right (False,False)) 
+
+    it "Should parse MigrationOnly and SafeToRemove" $ do
+      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "  MigrationOnly   SafeToRemove"
+      parseResult `shouldBe` (Right (True,True)) 
+
+    it "Should parse SafeToRemove and MigrationOnly" $ do
+      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "   SafeToRemove  MigrationOnly"
+      parseResult `shouldBe` (Right (True,True)) 
+
+
+    it "Should parse MigrationOnly" $ do
+      let parseResult = parseOnly (parseMigrationOnlyAndSafeToRemove []) "     MigrationOnly"
+      parseResult `shouldBe` (Right [MigrationOnly])
+
+    it "Should parse SafeToRemove" $ do
+      let parseResult = parseOnly (parseMigrationOnlyAndSafeToRemove []) "   SafeToRemove"
+      parseResult `shouldBe` (Right [SafeToRemove]) 
+
+    it "Should parse empty space" $ do
+      let parseResult = parseOnly (parseMigrationOnlyAndSafeToRemove []) "     "
+      parseResult `shouldBe` (Right [])
+
+    it "Should parse MigrationOnly and SafeToRemove" $ do
+      let parseResult = parseOnly (parseMigrationOnlyAndSafeToRemove []) "  MigrationOnly   SafeToRemove"
+      parseResult `shouldBe` (Right [MigrationOnly,SafeToRemove]) 
+
+    it "Should parse SafeToRemove and MigrationOnly" $ do
+      let parseResult = parseOnly (parseMigrationOnlyAndSafeToRemove []) "   SafeToRemove  MigrationOnly"
+      parseResult `shouldBe` (Right [SafeToRemove,MigrationOnly]) 
+
+  describe "parseEntityFieldLastItem" $ do
+    it "Should parse a default assignment" $ do
+      let parseResult = parseOnly (parseEntityFieldLastItem []) "   default  =   Nothing"
+      parseResult `shouldBe` (Right [(FieldDefault "Nothing")]) 
+
+    it "Should parse an sql row assignment" $ do
+      let parseResult = parseOnly (parseEntityFieldLastItem []) "   sql=person"
+      parseResult `shouldBe` (Right [(FieldSqlRow "person")])
+
+    it "Should parse an sql type assignment" $ do
+      let parseResult = parseOnly (parseEntityFieldLastItem []) "   sqltype=date"
+      parseResult `shouldBe` (Right [(FieldSqlType "date")])
+
+    it "Should parse an maxlen assignment" $ do
+      let parseResult = parseOnly (parseEntityFieldLastItem []) "   maxlen=15"
+      parseResult `shouldBe` (Right [(FieldMaxLen 15)])
+
+
+    -- parseMigrationOnlyAndSafeToRemove
+  {-
   describe "parseEntityFieldType" $ do
     it "Should parse a well formed entity field type" $ do
       let sampleEntityFieldType = " [Int]"
       let eft = EntityFieldType "Int" True
       let parseResult = parseOnly parseEntityFieldType sampleEntityFieldType
       parseResult `shouldBe` (Right eft) 
-      
+  -}
+
+  {-    
   describe "parseEntityField" $ do
     it "Should parse a well formed entity field" $ do
       let sampleEntityField = "  ident Text"
@@ -124,7 +201,9 @@ spec = do
       let sampleEntityField = "ident Text"
       let parseResult = parseOnly parseEntityField sampleEntityField
       isLeft parseResult `shouldBe` True
+  -}
 
+  {-
   describe "parseEntityUnique" $ do
     it "Should parse a well formed entity unique" $ do
       let sampleEntityUnique = "  UniqueGroup group"
@@ -180,6 +259,7 @@ spec = do
       let e = [PersistModelFileEntity $ Entity "User" [ef1,ef2,eu,ed]]
 
       parseResult `shouldBe` (Right e)
+  -}
 
 main :: IO ()
 main = hspec spec

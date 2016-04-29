@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import           Database.Persist.Audit.Types
 
 
+{-
 -- | Five options for generating Audit Models and ToAudit Instances.
 data AuditGeneratorSettings = AuditGeneratorSettings {
   childSpacing     :: Int   -- ^ The number of spaces to add for all items that appear under an EntityName. 
@@ -162,3 +163,6 @@ firstLetterToUpperCase _     = []
 firstLetterToLowerCase :: String -> String
 firstLetterToLowerCase (h:r) = toLower h : r
 firstLetterToLowerCase _     = []
+
+
+-}

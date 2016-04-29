@@ -20,8 +20,10 @@ data PersistModelFilePiece = PersistModelFileEntity     Entity     |
 
 -- | A single Persist Model Entity.
 data Entity = Entity {
-  _getEntityName     :: Text
-, _getEntityChildren :: [EntityChild]
+  _getEntityName      :: Text
+, _isEntityDeriveJson :: Bool          -- | Person json
+, _getEntitySql       :: Maybe Text    -- | Person sql=peoples
+, _getEntityChildren  :: [EntityChild]
 } deriving (Eq,Show,Read)
 
 
@@ -36,28 +38,50 @@ data EntityChild = EntityChildEntityField  EntityField  |
 
 -- | A data row from an Entity.
 data EntityField = EntityField {
-  _getEntityFieldName :: Text
-, _getEntityFieldType :: EntityFieldType
-, _getEntityFieldRest :: Text  
+  _getEntityFieldName         :: Text
+, _getEntityFieldType         :: EntityFieldType
+, _isEntityFieldMigrationOnly :: Bool
+, _isEntityFieldSafeToRemove  :: Bool
+, _getEntityFieldDefault      :: Maybe Text
+, _getEntityFieldSqlRow       :: Maybe Text
+, _getEntityFieldSqlType      :: Maybe Text
+, _getEntityFieldMaxLen       :: Maybe Int
 } deriving (Eq,Show,Read)
+
+
+{-
+, _getEntityFieldType :: EntityFieldType
+, _isEntityFieldMigrationOnly :: Bool -- | MigrationOnly
+, _isEntityFieldSafeToRemove  :: Bool -- | SafeToRemove
+, _getEntityDefault   :: Maybe Text   -- | default=Nothing, default=now(), default=CURRENT_DATE
+, _getEntitySql       :: Maybe Text -- | sql=my_id_name
+, _getEntitySqlType   :: Maybe Text -- | sqltype=varchar(255)
+-}
 
 -- | An entity data row's type. If '_isEntityFieldTypeList' is 'True' than this type is a list.
 data EntityFieldType = EntityFieldType {
-  _getEntityFieldTypeText ::  Text 
-, _isEntityFieldTypeList  ::  Bool
+  _getEntityFieldTypeText :: Text 
+, _isEntityFieldTypeList  :: Bool
+, _isEntityFieldTypeMaybe :: Bool
 } deriving (Eq,Show,Read)
+
+-- FOREIGN Type 
+-- maxlen
+-- ~ lazy
+-- ! strict
+
+-- _isEntityFieldTypeMaybe
 
 -- | A unique idenfitier for an Entity.
 data EntityUnique = EntityUnique {
   _getEntityUniqueName            ::  Text
-, _getEntityUniqueEntityFieldName ::  Text
-, _getEntityUniqueRest            ::  Text
+, _getEntityUniqueEntityFieldName ::  [Text]
 } deriving (Eq,Show,Read)
 
 
 -- | 'deriving Eq', 'deriving Show', etc.
 data EntityDerive = EntityDerive {
-  _getEntityDeriveType :: Text
+  _getEntityDeriveType :: [Text]
 } deriving (Eq,Show,Read)
 
 
@@ -77,3 +101,6 @@ data AuditAction = Create | Delete | Update
   deriving (Show, Read, Eq, Ord)
 
 derivePersistField "AuditAction"
+
+
+-- Foreign Type field field

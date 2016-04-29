@@ -34,7 +34,10 @@ instance HasArguments CmdOptions
 
 main :: IO ()
 main = withCliModified mods $ \ (ops :: CmdOptions) -> do
-  
+  print "Hello"
+  m <- Data.Text.IO.readFile $ model ops
+  return ()
+  {-
   m <- Data.Text.IO.readFile $ model ops
   let settings = defaultSettings {foreignKeyType = MongoKeyInSQL}
   case parseModelsFile m of 
@@ -46,7 +49,7 @@ main = withCliModified mods $ \ (ops :: CmdOptions) -> do
         Just auditInstanceFile -> do
           Data.Text.IO.writeFile auditInstanceFile (generateToAuditInstances settings models)
           return ()
-  
+  -}
 
   where
     mods =
