@@ -27,13 +27,18 @@ data Entity = Entity {
 } deriving (Eq,Show,Read)
 
 
+-- Primary name name2 age
+-- Foreign TestParent fkparent name name2 age
+
 -- | All of the child elements of a Persist Model Entity.
 -- | They are all indented in the Model File.
-data EntityChild = EntityChildEntityField  EntityField  |
-                   EntityChildEntityUnique EntityUnique |
-                   EntityChildEntityDerive EntityDerive |
-                   EntityChildComment      Comment      |
-                   EntityChildWhiteSpace   WhiteSpace
+data EntityChild = EntityChildEntityField   EntityField   |
+                   EntityChildEntityUnique  EntityUnique  |
+                   EntityChildEntityDerive  EntityDerive  |
+                   EntityChildEntityPrimary EntityPrimary |
+                   EntityChildEntityForeign EntityForeign |
+                   EntityChildComment       Comment       |
+                   EntityChildWhiteSpace    WhiteSpace    
   deriving (Eq,Show,Read)
 
 -- | A data row from an Entity.
@@ -88,7 +93,18 @@ data EntityUnique = EntityUnique {
 
 -- | 'deriving Eq', 'deriving Show', etc.
 data EntityDerive = EntityDerive {
-  _getEntityDeriveType :: [Text]
+  _getEntityDeriveTypes :: [Text]
+} deriving (Eq,Show,Read)
+
+-- | 'Primary name'
+data EntityPrimary = EntityPrimary {
+  _getEntityPrimeType :: [Text]
+} deriving (Eq,Show,Read)
+
+-- | 'Foreign Tree fkparent parent'
+data EntityForeign = EntityForeign {
+  _getEntityForeignTable :: Text
+, _getEntityForeignTypes :: [Text]
 } deriving (Eq,Show,Read)
 
 

@@ -111,6 +111,31 @@ spec = do
                          ]
       (rights parseResults) `shouldMatchList` []
 
+  describe "parseEntityPrimary" $ do
+    it "should parse" $ do
+      let parseResult = parseOnly parseEntityPrimary "  Primary name age"
+      parseResult `shouldBe` (Right (EntityPrimary ["name","age"]))
+  
+  describe "parseEntityForeign" $ do
+    it "should parse" $ do
+      let parseResult = parseOnly parseEntityForeign "  Foreign Tree fkparent parent"
+      parseResult `shouldBe` (Right (EntityForeign "Tree" ["fkparent","parent"]))
+  
+  {-
+parseEntityPrimary :: Parser EntityPrimary
+parseEntityPrimary = do
+  _ <- many1 spaceNoNewLine
+  _ <- string "Primary"
+  -- _ <- many1 spaceNoNewLine
+  names <- many1 (many1 spaceNoNewLine *> haskellFunctionName)
+  
+  _ <- takeTill isEndOfLine
+  endOfLine <|> endOfInput
+
+  return $ EntityPrimary names
+
+parseEntityForeign :: Parser EntityForeign
+  -}
   describe "parseMigrationOnlyAndSafeToRemove" $ do
     it "Should parse MigrationOnly" $ do
       let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "     MigrationOnly"
@@ -200,15 +225,21 @@ spec = do
       let parseResult = parseOnly (parseEntity) "Person\n  name Text"
       parseResult `shouldBe` (Right (Entity "Person" False Nothing [(EntityChildEntityField $ EntityField "name" (EntityFieldType "Text" Strict False False) False False Nothing Nothing Nothing Nothing)]))
     
-    it "parses Entity with a table name,  multiple fields, Unique and deriving" $ do
-      let parseResult = parseOnly (parseEntity) "Person\n  name Text\n  phoneNumber Int Maybe\n  friends [PersonId]\n  UniquePerson name\n  deriving Eq Read Show"
+    it "parses Entity with a table name,  multiple fields, Unique, Foreign and deriving" $ do
+      let parseResult = parseOnly (parseEntity) "Person\n  name Text\n  phoneNumber Int Maybe\n  friends [PersonId]\n  UniquePerson name\n  deriving Eq Read Show\n  Primary name age"
       parseResult `shouldBe` (Right (Entity "Person" False Nothing [(EntityChildEntityField  $ EntityField   "name" (EntityFieldType "Text" Strict False False) False False Nothing Nothing Nothing Nothing)
                                                                    ,(EntityChildEntityField  $ EntityField   "phoneNumber" (EntityFieldType "Int" Strict False True) False False Nothing Nothing Nothing Nothing)
                                                                    ,(EntityChildEntityField  $ EntityField   "friends" (EntityFieldType "PersonId" Strict True False) False False Nothing Nothing Nothing Nothing)
                                                                    ,(EntityChildEntityUnique $ EntityUnique "UniquePerson" ["name"])
-                                                                   ,(EntityChildEntityDerive $ EntityDerive ["Eq","Read","Show"])]))
+                                                                   ,(EntityChildEntityDerive $ EntityDerive ["Eq","Read","Show"])
+                                                                   ,(EntityChildEntityPrimary $ EntityPrimary ["name","age"])]))
     
       
+
+    {-
+"  Primary name age"
+      parseResult `shouldBe` (Right (EntityPrimary ["name","age"]))
+    -}
   describe "parseEntityField" $ do
     it "Should parse a well formed entity field" $ do
       let sampleEntityField = "  ident Text"

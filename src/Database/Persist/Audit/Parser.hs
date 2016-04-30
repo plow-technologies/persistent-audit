@@ -61,11 +61,13 @@ parseEntity = do
   _ <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
-  entityChildren <- many' ( EntityChildEntityField  <$> parseEntityField 
-                        <|> EntityChildEntityUnique <$> parseEntityUnique 
-                        <|> EntityChildEntityDerive <$> parseEntityDerive 
-                        <|> EntityChildWhiteSpace   <$> collectWhiteSpace
-                        <|> EntityChildComment      <$> singleLineComment)
+  entityChildren <- many' ( EntityChildEntityField   <$> parseEntityField 
+                        <|> EntityChildEntityDerive  <$> parseEntityDerive 
+                        <|> EntityChildEntityPrimary <$> parseEntityPrimary
+                        <|> EntityChildEntityForeign <$> parseEntityForeign
+                        <|> EntityChildEntityUnique  <$> parseEntityUnique 
+                        <|> EntityChildWhiteSpace    <$> collectWhiteSpace
+                        <|> EntityChildComment       <$> singleLineComment)
   
   return $ Entity entityName derivesJson mSqlTable entityChildren
 
@@ -463,10 +465,41 @@ parseEntityDerive = do
   -- _ <- many1 spaceNoNewLine
   names <- many1 (many1 spaceNoNewLine *> haskellTypeName)
   
-  rest <- takeTill isEndOfLine
+  _ <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
   return $ EntityDerive names
+
+parseEntityPrimary :: Parser EntityPrimary
+parseEntityPrimary = do
+  _ <- many1 spaceNoNewLine
+  _ <- string "Primary"
+  -- _ <- many1 spaceNoNewLine
+  names <- many1 (many1 spaceNoNewLine *> haskellFunctionName)
+  
+  _ <- takeTill isEndOfLine
+  endOfLine <|> endOfInput
+
+  return $ EntityPrimary names
+
+parseEntityForeign :: Parser EntityForeign
+parseEntityForeign = do
+  _ <- many1 spaceNoNewLine
+  _ <- string "Foreign"
+  _ <- many1 spaceNoNewLine
+  foreignTable <- haskellTypeName
+  names <- many1 (many1 spaceNoNewLine *> haskellFunctionName)
+  
+  _ <- takeTill isEndOfLine
+  endOfLine <|> endOfInput
+
+  return $ EntityForeign foreignTable names
+
+{-
+parseEntityDerive 
+                        <|> EntityChildPrimary      <$> parseEntityPrimary
+                        <|> EntityChildForeign      <$> parseEntityForeign
+-}
 
 
 parseForeignKeyType :: Parser () -- Text
