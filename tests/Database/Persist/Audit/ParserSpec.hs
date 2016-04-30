@@ -170,26 +170,97 @@ spec = do
       let parseResult = parseOnly (parseEntityFieldLastItem []) "   maxlen=15"
       parseResult `shouldBe` (Right [(FieldMaxLen 15)])
 
+    it "Should parse mulitple items" $ do
+      let parseResult = parseOnly (parseEntityFieldLastItem []) "   default  =   Nothing maxlen=15"
+      parseResult `shouldBe` (Right [(FieldDefault "Nothing"), (FieldMaxLen 15)])
+    
+    it "Should parse mulitple items" $ do
+      let parseResult = parseOnly (parseEntityFieldLastItem []) "   default  =   Nothing maxlen=15  sqltype=date   sql=person"
+      parseResult `shouldBe` (Right [(FieldDefault "Nothing"), (FieldMaxLen 15),(FieldSqlType "date"), (FieldSqlRow "person")])
+      
 
-    -- parseMigrationOnlyAndSafeToRemove
-  {-
-  describe "parseEntityFieldType" $ do
-    it "Should parse a well formed entity field type" $ do
-      let sampleEntityFieldType = " [Int]"
-      let eft = EntityFieldType "Int" True
-      let parseResult = parseOnly parseEntityFieldType sampleEntityFieldType
-      parseResult `shouldBe` (Right eft) 
-  -}
+  describe "parseEntity" $ do
+    it "parses Entity with only a table name" $ do
+      let parseResult = parseOnly (parseEntity) "Person"
+      parseResult `shouldBe` (Right (Entity "Person" False Nothing []))
 
-  {-    
+    it "parses Entity with table name and derive json" $ do
+      let parseResult = parseOnly (parseEntity) "Person   json"
+      parseResult `shouldBe` (Right (Entity "Person" True Nothing []))
+    
+    it "parses Entity with table name and sql table set to person" $ do
+      let parseResult = parseOnly (parseEntity) "Person sql  =  person"
+      parseResult `shouldBe` (Right (Entity "Person" False (Just "person") []))
+    
+    it "parses Entity with table name, derive json, and table set to person" $ do
+      let parseResult = parseOnly (parseEntity) "Person   json     sql=   person"
+      parseResult `shouldBe` (Right (Entity "Person" True (Just "person") []))
+    
+    it "parses Entity with table name and one field" $ do
+      let parseResult = parseOnly (parseEntity) "Person\n  name Text"
+      parseResult `shouldBe` (Right (Entity "Person" False Nothing [(EntityChildEntityField $ EntityField "name" (EntityFieldType "Text" Strict False False) False False Nothing Nothing Nothing Nothing)]))
+    
+    it "parses Entity with a table name,  multiple fields, Unique and deriving" $ do
+      let parseResult = parseOnly (parseEntity) "Person\n  name Text\n  phoneNumber Int Maybe\n  friends [PersonId]\n  UniquePerson name\n  deriving Eq Read Show"
+      parseResult `shouldBe` (Right (Entity "Person" False Nothing [(EntityChildEntityField  $ EntityField   "name" (EntityFieldType "Text" Strict False False) False False Nothing Nothing Nothing Nothing)
+                                                                   ,(EntityChildEntityField  $ EntityField   "phoneNumber" (EntityFieldType "Int" Strict False True) False False Nothing Nothing Nothing Nothing)
+                                                                   ,(EntityChildEntityField  $ EntityField   "friends" (EntityFieldType "PersonId" Strict True False) False False Nothing Nothing Nothing Nothing)
+                                                                   ,(EntityChildEntityUnique $ EntityUnique "UniquePerson" ["name"])
+                                                                   ,(EntityChildEntityDerive $ EntityDerive ["Eq","Read","Show"])]))
+    
+      
   describe "parseEntityField" $ do
     it "Should parse a well formed entity field" $ do
       let sampleEntityField = "  ident Text"
-      let eft = EntityFieldType "Text" False
-      let ef  = EntityField "ident" eft ""
+      let eft = EntityFieldType "Text" Strict False False
+      let ef  = EntityField "ident" eft  False False Nothing Nothing Nothing Nothing
       let parseResult = parseOnly parseEntityField sampleEntityField
       parseResult `shouldBe` (Right ef) 
     
+    it "Should parse a well formed entity field with list type" $ do
+      let sampleEntityField = "  ident [Text]"
+      let eft = EntityFieldType "Text" Strict True False
+      let ef  = EntityField "ident" eft  False False Nothing Nothing Nothing Nothing
+      let parseResult = parseOnly parseEntityField sampleEntityField
+      parseResult `shouldBe` (Right ef) 
+    
+    it "Should parse a well formed entity field with maybe type" $ do
+      let sampleEntityField = "  ident Text Maybe"
+      let eft = EntityFieldType "Text" Strict False True
+      let ef  = EntityField "ident" eft  False False Nothing Nothing Nothing Nothing
+      let parseResult = parseOnly parseEntityField sampleEntityField
+      parseResult `shouldBe` (Right ef) 
+    
+    it "Should parse a well formed entity field with maybe list type" $ do
+      let sampleEntityField = "  ident [Text] Maybe"
+      let eft = EntityFieldType "Text" Strict True True
+      let ef  = EntityField "ident" eft  False False Nothing Nothing Nothing Nothing
+      let parseResult = parseOnly parseEntityField sampleEntityField
+      parseResult `shouldBe` (Right ef)
+
+
+    it "Should parse an entity field with explicit strict type" $ do
+      let sampleEntityField = "  ident !Text"
+      let eft = EntityFieldType "Text" ExplicitStrict False False 
+      let ef  = EntityField "ident" eft  False False Nothing Nothing Nothing Nothing
+      let parseResult = parseOnly parseEntityField sampleEntityField
+      parseResult `shouldBe` (Right ef) 
+
+    it "Should parse an entity field with a lazy type" $ do
+      let sampleEntityField = "  ident ~Text"
+      let eft = EntityFieldType "Text" Lazy False False
+      let ef  = EntityField "ident" eft  False False Nothing Nothing Nothing Nothing
+      let parseResult = parseOnly parseEntityField sampleEntityField
+      parseResult `shouldBe` (Right ef) 
+
+    it "Should parse an entity field with a list of lazy types" $ do
+      let sampleEntityField = "  ident [~Text]"
+      let eft = EntityFieldType "Text" Lazy True False
+      let ef  = EntityField "ident" eft  False False Nothing Nothing Nothing Nothing
+      let parseResult = parseOnly parseEntityField sampleEntityField
+      parseResult `shouldBe` (Right ef)  
+    
+  {-  
     it "Should parse a well formed entity field" $ do
       let sampleEntityField = "  phoneNumbers [Int]"
       let eft = EntityFieldType "Int" True

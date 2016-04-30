@@ -22,7 +22,7 @@ data PersistModelFilePiece = PersistModelFileEntity     Entity     |
 data Entity = Entity {
   _getEntityName      :: Text
 , _isEntityDeriveJson :: Bool          -- | Person json
-, _getEntitySql       :: Maybe Text    -- | Person sql=peoples
+, _getEntitySqlTable  :: Maybe Text    -- | Person sql=peoples
 , _getEntityChildren  :: [EntityChild]
 } deriving (Eq,Show,Read)
 
@@ -58,11 +58,18 @@ data EntityField = EntityField {
 , _getEntitySqlType   :: Maybe Text -- | sqltype=varchar(255)
 -}
 
+-- | Table rows can be strict or lazy
+data Strictness = Strict -- | Persist Model types are strict without any notation 
+  | ExplicitStrict       -- | "!" can be used to reemphasize that a type is strict
+  | Lazy                 -- | "~" means that a type is Laxy
+  deriving (Eq,Show,Read)
+
 -- | An entity data row's type. If '_isEntityFieldTypeList' is 'True' than this type is a list.
 data EntityFieldType = EntityFieldType {
-  _getEntityFieldTypeText :: Text 
-, _isEntityFieldTypeList  :: Bool
-, _isEntityFieldTypeMaybe :: Bool
+  _getEntityFieldTypeText   :: Text
+, _getEntityFieldStrictness :: Strictness
+, _isEntityFieldTypeList    :: Bool
+, _isEntityFieldTypeMaybe   :: Bool
 } deriving (Eq,Show,Read)
 
 -- FOREIGN Type 

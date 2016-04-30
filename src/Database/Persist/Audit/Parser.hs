@@ -25,6 +25,9 @@ import           Prelude hiding (takeWhile)
 
 import           Text.Read (readMaybe)
 
+
+-- handling indented text appropriately
+
 parseQuasiQuoterFile :: Text -> Either String PersistModelFile
 parseQuasiQuoterFile = parseOnly parseEntities
 
@@ -50,20 +53,48 @@ parseEntities = do
 parseEntity :: Parser Entity
 parseEntity = do
 
-  entityName <- parseEntityName
+  entityName <- haskellTypeNameWithoutPrefix
+  _ <- many' spaceNoNewLine
+  derivesJson <- (string "json" *> pure True) <|> pure False
+  _ <- many' spaceNoNewLine
+  mSqlTable <- (Just <$> parseEntitySqlTable) <|> pure Nothing
+  _ <- takeTill isEndOfLine
+  endOfLine <|> endOfInput
+
   entityChildren <- many' ( EntityChildEntityField  <$> parseEntityField 
                         <|> EntityChildEntityUnique <$> parseEntityUnique 
                         <|> EntityChildEntityDerive <$> parseEntityDerive 
                         <|> EntityChildWhiteSpace   <$> collectWhiteSpace
                         <|> EntityChildComment      <$> singleLineComment)
   
-  return $ Entity entityName False Nothing entityChildren
+  return $ Entity entityName derivesJson mSqlTable entityChildren
+
+
+{-
+parseEntityName :: Parser Text
+parseEntityName = do
+  name <- haskellTypeName
+  rest <- takeTill isEndOfLine
+  endOfLine <|> endOfInput
+  return name
+-}
+
+parseEntitySqlTable :: Parser Text
+parseEntitySqlTable = do
+  _ <- string "sql" 
+  _ <- many' spaceNoNewLine
+  _ <- char '='
+  _ <- many' spaceNoNewLine
+  -- take while not space
+  text <- many' (digit <|> letter <|> underline) 
+  return $ T.pack text
+
 
 {-
 data Entity = Entity {
   _getEntityName      :: Text
 , _isEntityDeriveJson :: Bool          -- | Person json
-, _getEntitySql       :: Maybe Text    -- | Person sql=peoples
+, _getEntitySqlTable  :: Maybe Text    -- | Person sql=peoples
 , _getEntityChildren  :: [EntityChild]
 } deriving (Eq,Show,Read)
 -}
@@ -115,17 +146,19 @@ haskellFunctionName = do
 haskellTypeName :: Parser Text
 haskellTypeName = do
   prefix <- (Just <$> exclamationMark) <|> (Just <$> tilde) <|> pure Nothing
+  haskellTypeNameWithoutPrefix
+
+haskellTypeNameWithoutPrefix :: Parser Text
+haskellTypeNameWithoutPrefix = do
   first <- upperCase
   rest  <- many' (digit <|> letter <|> underline) 
   -- check for ']' because it could be in a list
-  lookAhead ((space *> pure ()) <|> (char ']' *> pure ())  <|> endOfInput )
+  lookAhead ((space *> pure ()) <|> (char ']' *> pure ())  <|> endOfInput)
   return $ T.pack ([first] ++ rest)
 
-haskellTypeNameWithoutPrefix :: Parser Text
-haskellTypeNameWithoutPrefix = undefined
 
 
--- | Parse a comment that starts with "-- ".
+-- | Parse a comment that starts with "--".
 singleLineComment :: Parser Comment
 singleLineComment = do
   _ <- string "--"
@@ -162,12 +195,19 @@ parseEntityField :: Parser EntityField
 parseEntityField = do
   efn <- parseEntityFieldName
   eft <- parseEntityFieldType
-  ms <- parseMigrationOnlyAndSafeToRemove []
-  rs <- parseEntityFieldLastItem []
 
+  ms <- parseMigrationOnlyAndSafeToRemove [] <|> pure []
+  rs <- parseEntityFieldLastItem [] <|> pure []
+  
   rest <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
+  {-
+  return $ EntityField efn 
+                       eft 
+                       False False Nothing Nothing Nothing Nothing
+  -}
+  
   return $ EntityField efn 
                        eft 
                        (elem MigrationOnly ms) 
@@ -176,15 +216,7 @@ parseEntityField = do
                        (getFieldSqlRow  rs)
                        (getFieldSqlType rs)
                        (getFieldMaxLen  rs)
-
-{-
-data EntityFieldLastItem = FieldDefault  Text
-                         | FieldSqlTable Text 
-                         | FieldSqlType  Text
-                         | FieldMaxLen   Int
-
-choice
--}
+  
 
 deleteItems :: (Eq a) => [a] -> [a] -> [a]
 deleteItems (x:xs) ys = deleteItems xs $ delete x ys 
@@ -369,23 +401,36 @@ parseEntityFieldName = do
     True -> fail "deriving"
     False -> return name
 
+parseStrictness :: Parser Strictness
+parseStrictness = do
+  (string "!" *> pure ExplicitStrict) <|> (string "~" *> pure Lazy) <|> pure Strict
+
 parseEntityFieldType :: Parser EntityFieldType
 parseEntityFieldType = do
   _ <- many1 spaceNoNewLine
   mLeftBracket <- maybeOption (char '[')
+  strictness <- parseStrictness
   name <- haskellTypeName
 
   case mLeftBracket of
     Nothing -> do
-      _ <- many1 spaceNoNewLine
-      mMaybe <- maybeOption (string "Maybe")
-      return $ EntityFieldType name False (isJust mMaybe)
+      -- _ <- many' spaceNoNewLine
+      -- mMaybe <- maybeOption (string "Maybe")
+      mybe <- (parseMaybe *> pure True) <|> pure False
+      return $ EntityFieldType name strictness False mybe
     Just _  -> do
       _ <- char ']'
-      _ <- many1 spaceNoNewLine
-      mMaybe <- maybeOption (string "Maybe")
-      return $ EntityFieldType name True (isJust mMaybe)
+      -- _ <- many' spaceNoNewLine
+      -- mMaybe <- maybeOption (string "Maybe")
+      mybe <- (parseMaybe *> pure True) <|> pure False
+      return $ EntityFieldType name strictness True mybe
 
+
+parseMaybe :: Parser ()
+parseMaybe = do
+  _ <- many1 spaceNoNewLine
+  _ <- string "Maybe"
+  return ()
 
 -- EntityUnique
 
@@ -415,8 +460,8 @@ parseEntityDerive :: Parser EntityDerive
 parseEntityDerive = do
   _ <- many1 spaceNoNewLine
   _ <- string "deriving"
-  _ <- many1 spaceNoNewLine
-  names <- many1 haskellTypeName
+  -- _ <- many1 spaceNoNewLine
+  names <- many1 (many1 spaceNoNewLine *> haskellTypeName)
   
   rest <- takeTill isEndOfLine
   endOfLine <|> endOfInput
