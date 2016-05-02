@@ -32,7 +32,7 @@ You can also use this as a library for the following purporses:
  * To parse Persistent model files
  * To generate Audit Models from other Models
  * To generate `ToAudit` instances 
- * Use query functions from `Database.Persist.Audit.Queries`:`insertAndAudit`, `insertWhereAndAudit`,`deleteAndAudit`,`deleteWhereAndAudit`,`updateAndAudit`,`updateWhereAndAudit`
+ * Use query functions from `Database.Persist.Audit.Queries`:`insertAndAudit`,`deleteAndAudit`,`deleteWhereAndAudit`,`updateAndAudit`,`updateWhereAndAudit`
  
 This package is originally based on this article [Maintaining a Log of Database Changes](http://www.4guysfromrolla.com/webtech/041807-1.shtml). Specifically, the first example: 'A Separate "History" Table for Each Table Being Audited'.
 
