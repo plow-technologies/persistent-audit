@@ -74,3 +74,8 @@ test-suite test
                    , text  
                    , time  
                    , transformers
+
+
+source-repository head
+  type:     git
+  location: https://github.com/mchaver/persistent-audit
