@@ -47,6 +47,12 @@ instance ToAudit Person where
 
 -}
 
+emptyModel :: Text
+emptyModel = "Test json sql=testing\n"
+
+emptyAuditModel :: Text
+emptyAuditModel = "TestAudit json sql=testing\n  originalId TestId noreference\n  auditAction AuditAction\n  editedBy Text\n  editedOn UTCTime\n\n"
+
 userModel :: Text
 userModel = "User\n  ident Text\n  password Text Maybe\n UniqueUser ident\n  deriving Typeable\n deriving Generic\n  deriving Eq\n  deriving Show\n  deriving Ord"
 
@@ -56,11 +62,13 @@ userAuditModel = "UserAudit\n  ident Text\n  password Text Maybe\n  deriving Typ
 userToAuditInstance :: Text
 userToAuditInstance = "instance ToAudit User where\n  type AuditResult User = UserAudit\n  toAudit v k auditAction editedBy editedOn = UserAudit\n    (userIdent v)\n    (userPassword v)\n    (k) auditAction editedBy editedOn\n\n"
 
-userByteStringToAuditInstance :: Text
-userByteStringToAuditInstance = "instance ToAudit User where\n  type AuditResult User = UserAudit\n  toAudit v k auditAction editedBy editedOn = UserAudit\n    (userIdent v)\n    (userPassword v)\n    (mongoKeyToByteString $ k) auditAction editedBy editedOn\n\n"
+userToAuditInstanceByteString :: Text
+userToAuditInstanceByteString = "instance ToAudit User where\n  type AuditResult User = UserAudit\n  toAudit v k auditAction editedBy editedOn = UserAudit\n    (userIdent v)\n    (userPassword v)\n    (mongoKeyToByteString k) auditAction editedBy editedOn\n\n"
 
-userInt64ToAuditInstance :: Text
-userInt64ToAuditInstance = "instance ToAudit User where\n  type AuditResult User = UserAudit\n  toAudit v k auditAction editedBy editedOn = UserAudit\n    (userIdent v)\n    (userPassword v)\n    (fromSqlKey $ k) auditAction editedBy editedOn\n\n"
+userToAuditInstanceInt64 :: Text
+userToAuditInstanceInt64 = "instance ToAudit User where\n  type AuditResult User = UserAudit\n  toAudit v k auditAction editedBy editedOn = UserAudit\n    (userIdent v)\n    (userPassword v)\n    (fromSqlKey k) auditAction editedBy editedOn\n\n"
+
+
 
 phoneModel :: Text
 phoneModel = "Phone\n  number Int\n  user UserId"
@@ -68,75 +76,53 @@ phoneModel = "Phone\n  number Int\n  user UserId"
 phoneAuditModel :: Text
 phoneAuditModel = "PhoneAudit\n  number Int\n  user UserId noreference\n  originalId PhoneId noreference\n  auditAction AuditAction\n  editedBy Text\n  editedOn UTCTime\n\n"
 
+phoneToAuditInstanceByteString :: Text
+phoneToAuditInstanceByteString = "instance ToAudit Phone where\n  type AuditResult Phone = PhoneAudit\n  toAudit v k auditAction editedBy editedOn = PhoneAudit\n    (phoneNumber v)\n    (mongoKeyToByteString $ phoneUser v)\n    (mongoKeyToByteString k) auditAction editedBy editedOn\n\n"
+
+
+
+phoneWithMaybeModel :: Text
+phoneWithMaybeModel = "Phone\n  number Int\n  user UserId Maybe"
+
+phoneWithMaybeToAuditInstanceByteString :: Text
+phoneWithMaybeToAuditInstanceByteString = "instance ToAudit Phone where\n  type AuditResult Phone = PhoneAudit\n  toAudit v k auditAction editedBy editedOn = PhoneAudit\n    (phoneNumber v)\n    (mongoKeyToByteString <$> phoneUser v)\n    (mongoKeyToByteString k) auditAction editedBy editedOn\n\n"
+
+-- userToAuditInstanceInt64 :: Text
+-- userToAuditInstanceInt64 = "instance ToAudit User where\n  type AuditResult User = UserAudit\n  toAudit v k auditAction editedBy editedOn = UserAudit\n    (userIdent v)\n    (userPassword v)\n    (fromSqlKey k) auditAction editedBy editedOn\n\n"
+
 phoneAuditByteStringModel :: Text
 phoneAuditByteStringModel = "PhoneAudit\n  number Int\n  user ByteString -- UserId\n  originalId ByteString -- PhoneId\n  auditAction AuditAction\n  editedBy Text\n  editedOn UTCTime\n\n"
 
 phoneAuditInt64Model :: Text
 phoneAuditInt64Model = "PhoneAudit\n  number Int\n  user Int64 -- UserId\n  originalId Int64 -- PhoneId\n  auditAction AuditAction\n  editedBy Text\n  editedOn UTCTime\n\n"
 
-{-
-data ForeignKeyType = OriginalKey   -- | Default setting. Link the ids as the original type with a "noreference" tag.
-                    | MongoKeyInSQL -- | Store Mongo Key as a ByteString in SQL.
-                    | SQLKeyInMongo -- | Store SQL Key as an Int64 in Mongo.
-  deriving (Eq,Read,Show)
-
--- | Settings that the author assumed would be most common.
-defaultSettings :: AuditGeneratorSettings
-defaultSettings =  AuditGeneratorSettings 2 "Audit" True False False OriginalKey
-
-toSqlKey :: ToBackendKey SqlBackend record => Int64 -> Key record
-Source
-
-fromSqlKey
-
-
--------------------------------------------------------------------------------
--- | Makes a Text representation of a Key.
-showKey :: ToBackendKey SqlBackend e => Key e -> Text
-showKey = T.pack . show . mkInt
-
-
--------------------------------------------------------------------------------
--- | Makes a ByteString representation of a Key.
-showKeyBS :: ToBackendKey SqlBackend e => Key e -> ByteString
-showKeyBS = T.encodeUtf8 . showKey
-
-
--------------------------------------------------------------------------------
--- | Converts a Key to Int.  Fails with error if the conversion fails.
-mkInt :: ToBackendKey SqlBackend a => Key a -> Int
-mkInt = fromIntegral . unSqlBackendKey . toBackendKey
-
--}
 
 spec :: Spec
 spec = do
   describe "Audit Model generator" $ do
     it "should generate an audit model from a model" $ do
-      True `shouldBe` True
+      let parseResult = parseOnly parseEntities emptyModel
+      case parseResult of 
+        Left _ -> False `shouldBe` True
+        Right es -> do 
+          let generatedAuditModels = generateAuditModels defaultSettings es
+          generatedAuditModels  `shouldBe` emptyAuditModel
 
-{-
-spec :: Spec
-spec = do
-  describe "Audit Model generator" $ do
-    it "should generate an audit model from a model" $ do
+    it "should generate an audit model for another model" $ do
       let parseResult = parseOnly parseEntities userModel
       case parseResult of 
         Left _ -> False `shouldBe` True
         Right es -> do 
           let generatedAuditModels = generateAuditModels defaultSettings es
-          generatedAuditModels == userAuditModel `shouldBe` True
-      
+          generatedAuditModels `shouldBe` userAuditModel
+
     it "should add noreference tag to foreign refereces" $ do
       let parseResult = parseOnly parseEntities phoneModel
       case parseResult of 
         Left _ -> False `shouldBe` True
         Right es -> do 
           let generatedAuditModels = generateAuditModels defaultSettings es
-
-          liftIO $ print generatedAuditModels
-          liftIO $ print phoneAuditModel
-          generatedAuditModels == phoneAuditModel `shouldBe` True
+          generatedAuditModels `shouldBe` phoneAuditModel
     
     it "should generate foreign references as ByteString if the MongoKeyInSQL setting is used" $ do
       let parseResult = parseOnly parseEntities phoneModel
@@ -144,11 +130,7 @@ spec = do
         Left _ -> False `shouldBe` True
         Right es -> do 
           let generatedAuditModels = generateAuditModels (defaultSettings {foreignKeyType = MongoKeyInSQL}) es
-
-          liftIO $ print generatedAuditModels
-          liftIO $ print phoneAuditByteStringModel
-          generatedAuditModels == phoneAuditByteStringModel `shouldBe` True
-    
+          generatedAuditModels `shouldBe` phoneAuditByteStringModel
 
     it "should generate foreign references as Int64 if the SQLKeyInMongo setting is used" $ do
       let parseResult = parseOnly parseEntities phoneModel
@@ -156,43 +138,46 @@ spec = do
         Left _ -> False `shouldBe` True
         Right es -> do 
           let generatedAuditModels = generateAuditModels (defaultSettings {foreignKeyType = SQLKeyInMongo}) es
+          generatedAuditModels `shouldBe` phoneAuditInt64Model
 
-          liftIO $ print generatedAuditModels
-          liftIO $ print phoneAuditInt64Model
-          generatedAuditModels == phoneAuditInt64Model `shouldBe` True
-    
+
+
   describe "ToAudit instance generator" $ do
     it "should generate an instance from a model" $ do
       let parseResult = parseOnly parseEntities userModel
       case parseResult of 
         Left _ -> False `shouldBe` True
         Right es -> do 
-          let generatedAuditModels = generateToAuditInstances defaultSettings es
-          liftIO $ print generatedAuditModels
-          liftIO $ print userToAuditInstance
-          generatedAuditModels == userToAuditInstance `shouldBe` True
+          let generatedAuditInstances = generateToAuditInstances defaultSettings es
+          generatedAuditInstances `shouldBe` userToAuditInstance
 
     it "should generate an instance from a model foreign references as ByteString when the MongoKeyInSQL setting is used" $ do
-      let parseResult = parseOnly parseEntities userModel
+      let parseResult = parseOnly parseEntities phoneModel
       case parseResult of 
         Left _ -> False `shouldBe` True
         Right es -> do 
-          let generatedAuditModels = generateToAuditInstances (defaultSettings {foreignKeyType = MongoKeyInSQL}) es
-          liftIO $ print generatedAuditModels
-          liftIO $ print userByteStringToAuditInstance
-          generatedAuditModels == userByteStringToAuditInstance `shouldBe` True
+          let generatedAuditInstances = generateToAuditInstances (defaultSettings {foreignKeyType = MongoKeyInSQL}) es
+          generatedAuditInstances `shouldBe` phoneToAuditInstanceByteString
 
+    it "should generate an instance from a model maybe foreign references as fmap ByteString when the MongoKeyInSQL setting is used" $ do
+      let parseResult = parseOnly parseEntities phoneWithMaybeModel
+      case parseResult of 
+        Left _ -> False `shouldBe` True
+        Right es -> do 
+          let generatedAuditInstances = generateToAuditInstances (defaultSettings {foreignKeyType = MongoKeyInSQL}) es
+          generatedAuditInstances `shouldBe` phoneWithMaybeToAuditInstanceByteString
+    
     it "should generate an instance from a model with foreign references as Int64 when the SQLKeyInMongo setting is used" $ do
       let parseResult = parseOnly parseEntities userModel
       case parseResult of 
         Left _ -> False `shouldBe` True
         Right es -> do 
-          let generatedAuditModels = generateToAuditInstances (defaultSettings {foreignKeyType = SQLKeyInMongo}) es
-          liftIO $ print generatedAuditModels
-          liftIO $ print userInt64ToAuditInstance
-          generatedAuditModels == userInt64ToAuditInstance `shouldBe` True  
+          let generatedAuditInstances = generateToAuditInstances (defaultSettings {foreignKeyType = SQLKeyInMongo}) es
+          liftIO $ print parseResult
+          generatedAuditInstances `shouldBe` userToAuditInstanceInt64
 
--}
 
+--userToAuditInstanceByteString
+--userToAuditInstanceInt64
 main :: IO ()
 main = hspec spec

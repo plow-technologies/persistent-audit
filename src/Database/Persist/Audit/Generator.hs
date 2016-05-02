@@ -10,7 +10,7 @@ import qualified Data.Text as T
 import           Database.Persist.Audit.Types
 
 
-{-
+
 -- | Five options for generating Audit Models and ToAudit Instances.
 data AuditGeneratorSettings = AuditGeneratorSettings {
   childSpacing     :: Int   -- ^ The number of spaces to add for all items that appear under an EntityName. 
@@ -40,59 +40,97 @@ defaultSettings =  AuditGeneratorSettings 2 "Audit" True False False OriginalKey
 generateAuditModels :: AuditGeneratorSettings -> PersistModelFile -> Text
 generateAuditModels settings = T.concat . (map $ (flip T.append "\n") . (printTopLevel settings))
 
-printForeignKey :: ForeignKeyType -> Text -> Text
-printForeignKey OriginalKey   entityName = entityName <> " noreference"
-printForeignKey MongoKeyInSQL entityName = "ByteString" --  -- " <> entityName
-printForeignKey SQLKeyInMongo entityName = "Int64" -- -- " <> entityName
+-- | Select the correct type from Audit Model to original Model. Used for cross database.
+-- | 'fst' is the type and 'snd' is the original type in comment for if using cross database.
+printForeignKey :: ForeignKeyType -> Text -> (Text, Text)
+printForeignKey OriginalKey   entityName = (entityName <> " noreference", "")
+printForeignKey MongoKeyInSQL entityName = ("ByteString", " -- " <> entityName)
+printForeignKey SQLKeyInMongo entityName = ("Int64"     , " -- " <> entityName)
+
 
 -- | Convert a 'TopLevel' to an Audit Model, white space or comment in 'Text'.
 printTopLevel :: AuditGeneratorSettings -> PersistModelFilePiece -> Text
-printTopLevel settings (PersistModelFileEntity     e) = (_getEntityName e <> auditTag settings <> "\n")
+printTopLevel settings (PersistModelFileEntity e) = (_getEntityName e <> auditTag settings <> jsonOption <> sqlOption <> "\n")
                                              <> (T.concat $ map (printEntityChild settings) $ _getEntityChildren e)
-                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "originalId " <> (printForeignKey (foreignKeyType settings) (_getEntityName e <> "Id")) <> "\n"
+                                             <> (T.pack $ replicate (childSpacing settings) ' ') <> "originalId " <> foreignKey <> foreignKeyComment <> "\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "auditAction AuditAction\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedBy Text\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedOn UTCTime\n"
-                                             
-printTopLevel settings (PersistModelFileComment    c) = case keepComments settings of
-                                                  True  -> _getComment c
-                                                  False -> ""
+  where
+    jsonOption = 
+      if _isEntityDeriveJson e then " " <> "json" else  ""
+    sqlOption =
+      case _getEntitySqlTable e of
+        Just s  -> " sql=" <> s  
+        Nothing -> ""
 
-printTopLevel settings (PersistModelFileWhiteSpace w) = case keepSpacing settings of
-                                                  True -> _getWhiteSpace w
-                                                  False -> ""
+    (foreignKey,foreignKeyComment) = printForeignKey (foreignKeyType settings) (_getEntityName e <> "Id")
+
+printTopLevel settings (PersistModelFileComment c) = 
+  if keepComments settings then _getComment c else ""
+
+printTopLevel settings (PersistModelFileWhiteSpace w) = 
+  if keepSpacing settings then _getWhiteSpace w else ""
+
 
 -- | Convert an 'EntityChild' to a piece of an Audit Model in 'Text'.
+-- | It does not generate anything for EntityUnique, EntityPrimary or EntityForeign
+-- | because Audits do not need to be unique, they will have an automatically produced Key
+-- | and should not have any foreign keys connecting back to the original model.
 printEntityChild :: AuditGeneratorSettings -> EntityChild -> Text
-printEntityChild settings (EntityChildEntityField  f) = "  " <> entityFieldName <> " "
-                                                     <> r
-                                                     <> entityFieldRest
+printEntityChild settings (EntityChildEntityField ef) = "  " <> entityFieldName <> " "
+                                                     <> entityFieldType
+                                                     <> entityDefault
+                                                     <> sqlRow
+                                                     <> sqlType
+                                                     <> maxLen
+                                                     <> foreignKeyComment'
                                                      <> "\n"
   where
-    entityFieldName = _getEntityFieldName f
-    entityFieldRest = _getEntityFieldRest f 
-    eft = _getEntityFieldType f
+    entityFieldName = _getEntityFieldName ef
+    eft = _getEntityFieldType ef
+    eftText = _getEntityFieldTypeText eft
+    (foreignKey,foreignKeyComment) = printForeignKey (foreignKeyType settings) eftText
 
-    t   = _getEntityFieldTypeText eft
+    entityFieldType = 
+      case _getEntityFieldStrictness eft of 
+        Strict -> ""
+        ExplicitStrict -> "!"
+        Lazy -> "~"
+      <> if _isEntityFieldTypeList eft then "[" else ""
+      <> if stringEndsInId . T.unpack $ eftText then foreignKey else eftText
+      <> if _isEntityFieldTypeList eft  then "]" else ""
+      <> if _isEntityFieldTypeMaybe eft then " Maybe" else ""
     
-    eftShow = case _isEntityFieldTypeList eft of
-      False -> t
-      True  -> "[" <> t <> "]"
-    
-    r = case stringEndsInId $ T.unpack eftShow of
-      False -> eftShow
-      True  -> (printForeignKey (foreignKeyType settings) eftShow)
+    entityDefault = 
+      case _getEntityFieldDefault ef of
+        Just d -> " default=" <> d
+        Nothing -> ""
 
-printEntityChild _        (EntityChildEntityUnique _) = ""
-printEntityChild _        (EntityChildEntityDerive d) = "  " <> "deriving" <> " " <> _getEntityDeriveType d <> "\n"
-printEntityChild settings (EntityChildComment      c) = case keepComments settings of 
-                                                          True  -> _getComment c
-                                                          False -> ""
+    sqlRow =
+      case _getEntityFieldSqlRow ef of
+        Just sr -> " sql=" <> sr
+        Nothing -> ""
 
-printEntityChild settings (EntityChildWhiteSpace   w) = case keepSpacing settings of
-                                                          True -> _getWhiteSpace w
-                                                          False -> ""
+    sqlType =
+      case _getEntityFieldSqlType ef of
+        Just st -> " sqltype=" <> st
+        Nothing -> ""
 
+    maxLen =
+      case _getEntityFieldMaxLen ef of
+        Just ml -> " maxlen=" <> (T.pack . show $ ml)
+        Nothing -> ""
+
+    foreignKeyComment' = if stringEndsInId . T.unpack $ eftText then foreignKeyComment else ""
+
+printEntityChild _ (EntityChildEntityDerive  d) = "  " <> "deriving" <> " " <> (T.intercalate " " (_getEntityDeriveTypes d)) <> "\n"
+printEntityChild _ (EntityChildEntityUnique  _) = ""
+printEntityChild _ (EntityChildEntityPrimary _) = ""
+printEntityChild _ (EntityChildEntityForeign _) = ""
+
+printEntityChild settings (EntityChildComment c) = if keepComments settings then _getComment c else ""
+printEntityChild settings (EntityChildWhiteSpace w) = if keepSpacing settings then _getWhiteSpace w else ""
 
 
 -- | Convert a list of 'TopLevel' to a to a list of 'ToAudit' in 'Text'.
@@ -105,11 +143,12 @@ printToAuditInstance settings (PersistModelFileEntity e) =  "instance ToAudit " 
                                     <> "  type AuditResult " <> entityName <> " = " <> auditEntityName <> "\n"
                                     <> "  toAudit v k auditAction editedBy editedOn = " <> auditEntityName <> "\n"
                                     <> (T.concat $ map (printModelAccessor settings entityName) entityChildren)
-                                    <> "    (" <> (printIfForeignKeyAlternate (foreignKeyType settings) "Id") <> "k) auditAction editedBy editedOn\n\n"
+                                    <> "    (" <> ifForeignKeyAlternate <> "k) auditAction editedBy editedOn\n\n"
   where
     entityName = _getEntityName e
     auditEntityName = entityName <> (auditTag settings)
     entityChildren = _getEntityChildren e
+    ifForeignKeyAlternate = printIfForeignKeyAlternate (foreignKeyType settings) "Id"
 
 printToAuditInstance _ _ = ""
 
@@ -117,11 +156,15 @@ printToAuditInstance _ _ = ""
 
 -- | Convert 'EntityChild' to a Model accessor.
 printModelAccessor :: AuditGeneratorSettings -> Text -> EntityChild -> Text
-printModelAccessor settings entityName (EntityChildEntityField f) = "    ("
-                                                        <> (printIfForeignKeyAlternate (foreignKeyType settings) (_getEntityFieldTypeText $ _getEntityFieldType f))
+printModelAccessor settings entityName (EntityChildEntityField ef) = "    ("
+                                                        <> ifForeignKeyAlternate
                                                         <> (T.pack . firstLetterToLowerCase . T.unpack $ entityName) 
-                                                        <> (T.pack . firstLetterToUpperCase . T.unpack $ _getEntityFieldName f)
+                                                        <> (T.pack . firstLetterToUpperCase . T.unpack $ _getEntityFieldName ef)
                                                         <> " v)\n"
+  where
+    entityFieldType = _getEntityFieldType ef
+    ifForeignKeyAlternate = printIfForeignKeyAlternate2 (foreignKeyType settings) (_getEntityFieldTypeText entityFieldType) entityFieldType
+
 printModelAccessor _ _ _ = ""
 
 
@@ -130,29 +173,39 @@ printIfForeignKeyAlternate :: ForeignKeyType -> Text -> Text
 printIfForeignKeyAlternate MongoKeyInSQL entityName = 
   case stringEndsInId $ T.unpack entityName of
     False -> ""
-    True  -> "mongoKeyToByteString $ "
+    True  -> "mongoKeyToByteString "
 
 printIfForeignKeyAlternate SQLKeyInMongo entityName = 
   case stringEndsInId $ T.unpack entityName of
     False -> ""
-    True  -> "fromSqlKey $ "
+    True  -> "fromSqlKey "
 
 printIfForeignKeyAlternate _ _ = ""
 
 
+printEntityFieldTypeFunctionConnector :: EntityFieldType -> Text
+printEntityFieldTypeFunctionConnector eft = if _isEntityFieldTypeMaybe eft then " <$>" else " $"
+
+printIfForeignKeyAlternate2 :: ForeignKeyType -> Text -> EntityFieldType -> Text
+printIfForeignKeyAlternate2 MongoKeyInSQL entityName entityFieldType = 
+  case stringEndsInId $ T.unpack entityName of
+    False -> ""
+    True  -> "mongoKeyToByteString" <> printEntityFieldTypeFunctionConnector entityFieldType <> " "
+
+printIfForeignKeyAlternate2 SQLKeyInMongo entityName entityFieldType = 
+  case stringEndsInId $ T.unpack entityName of
+    False -> ""
+    True  -> "fromSqlKey" <> printEntityFieldTypeFunctionConnector entityFieldType <> " "
+
+printIfForeignKeyAlternate2 _ _ _ = ""
+
+
 -- | Return true if the last two characters are "Id".
 stringEndsInId :: String -> Bool
-stringEndsInId s = case length s >= 2 of
-    False -> False
-    True -> hasId $ reverse s
+stringEndsInId s = if length s > 1 then hasId $ reverse s else False
   where
     hasId ('d':'I':_) = True
     hasId _ = False
-
--- Id list
-
--- list or maybe <$>, otherwise $ 
-
 
 -- | Convert the first letter of a 'String' to the corresponding uppercase letter.
 firstLetterToUpperCase :: String -> String
@@ -163,6 +216,3 @@ firstLetterToUpperCase _     = []
 firstLetterToLowerCase :: String -> String
 firstLetterToLowerCase (h:r) = toLower h : r
 firstLetterToLowerCase _     = []
-
-
--}

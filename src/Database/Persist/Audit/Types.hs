@@ -45,29 +45,21 @@ data EntityChild = EntityChildEntityField   EntityField   |
 data EntityField = EntityField {
   _getEntityFieldName         :: Text
 , _getEntityFieldType         :: EntityFieldType
-, _isEntityFieldMigrationOnly :: Bool
-, _isEntityFieldSafeToRemove  :: Bool
-, _getEntityFieldDefault      :: Maybe Text
-, _getEntityFieldSqlRow       :: Maybe Text
-, _getEntityFieldSqlType      :: Maybe Text
+, _isEntityFieldMigrationOnly :: Bool  -- | MigrationOnly
+, _isEntityFieldSafeToRemove  :: Bool  -- | SafeToRemove
+, _getEntityFieldDefault      :: Maybe Text -- | default=Nothing, default=now(), default=CURRENT_DATE
+, _getEntityFieldSqlRow       :: Maybe Text -- | sql=my_id_name
+, _getEntityFieldSqlType      :: Maybe Text -- | sqltype=varchar(255)
 , _getEntityFieldMaxLen       :: Maybe Int
 } deriving (Eq,Show,Read)
 
-
-{-
-, _getEntityFieldType :: EntityFieldType
-, _isEntityFieldMigrationOnly :: Bool -- | MigrationOnly
-, _isEntityFieldSafeToRemove  :: Bool -- | SafeToRemove
-, _getEntityDefault   :: Maybe Text   -- | default=Nothing, default=now(), default=CURRENT_DATE
-, _getEntitySql       :: Maybe Text -- | sql=my_id_name
-, _getEntitySqlType   :: Maybe Text -- | sqltype=varchar(255)
--}
 
 -- | Table rows can be strict or lazy
 data Strictness = Strict -- | Persist Model types are strict without any notation 
   | ExplicitStrict       -- | "!" can be used to reemphasize that a type is strict
   | Lazy                 -- | "~" means that a type is Laxy
   deriving (Eq,Show,Read)
+
 
 -- | An entity data row's type. If '_isEntityFieldTypeList' is 'True' than this type is a list.
 data EntityFieldType = EntityFieldType {
