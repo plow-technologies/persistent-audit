@@ -97,6 +97,13 @@ phoneAuditInt64Model :: Text
 phoneAuditInt64Model = "PhoneAudit\n  number Int\n  user Int64 -- UserId\n  originalId Int64 -- PhoneId\n  auditAction AuditAction\n  editedBy Text\n  editedOn UTCTime\n\n"
 
 
+addressModel :: Text
+addressModel = "Address\n  address Text\n  phoneNumbers [Phone]"
+
+addressAuditModel :: Text
+addressAuditModel = "AddressAudit\n  address Text\n  phoneNumbers [Phone]\n  originalId AddressId noreference\n  auditAction AuditAction\n  editedBy Text\n  editedOn UTCTime\n\n"
+
+
 spec :: Spec
 spec = do
   describe "Audit Model generator" $ do
@@ -123,6 +130,15 @@ spec = do
         Right es -> do 
           let generatedAuditModels = generateAuditModels defaultSettings es
           generatedAuditModels `shouldBe` phoneAuditModel
+
+    it "should generate fields that are list types" $ do
+      let parseResult = parseOnly parseEntities addressModel
+      case parseResult of 
+        Left _ -> False `shouldBe` True
+        Right es -> do
+          liftIO $ print es 
+          let generatedAuditModels = generateAuditModels defaultSettings es
+          generatedAuditModels `shouldBe` addressAuditModel
     
     it "should generate foreign references as ByteString if the MongoKeyInSQL setting is used" $ do
       let parseResult = parseOnly parseEntities phoneModel
@@ -177,7 +193,5 @@ spec = do
           generatedAuditInstances `shouldBe` userToAuditInstanceInt64
 
 
---userToAuditInstanceByteString
---userToAuditInstanceInt64
 main :: IO ()
 main = hspec spec

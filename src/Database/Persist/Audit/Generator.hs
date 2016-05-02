@@ -97,9 +97,9 @@ printEntityChild settings (EntityChildEntityField ef) = "  " <> entityFieldName 
         Strict -> ""
         ExplicitStrict -> "!"
         Lazy -> "~"
-      <> if _isEntityFieldTypeList eft then "[" else ""
-      <> if stringEndsInId . T.unpack $ eftText then foreignKey else eftText
-      <> if _isEntityFieldTypeList eft  then "]" else ""
+      <> maybeLeftBracket
+      <> entityType
+      <> maybeRightBracket
       <> if _isEntityFieldTypeMaybe eft then " Maybe" else ""
     
     entityDefault = 
@@ -122,6 +122,9 @@ printEntityChild settings (EntityChildEntityField ef) = "  " <> entityFieldName 
         Just ml -> " maxlen=" <> (T.pack . show $ ml)
         Nothing -> ""
 
+    maybeLeftBracket = if _isEntityFieldTypeList eft then "[" else ""
+    maybeRightBracket = if _isEntityFieldTypeList eft  then "]" else ""
+    entityType = if stringEndsInId . T.unpack $ eftText then foreignKey else eftText
     foreignKeyComment' = if stringEndsInId . T.unpack $ eftText then foreignKeyComment else ""
 
 printEntityChild _ (EntityChildEntityDerive  d) = "  " <> "deriving" <> " " <> (T.intercalate " " (_getEntityDeriveTypes d)) <> "\n"
@@ -183,22 +186,40 @@ printIfForeignKeyAlternate SQLKeyInMongo entityName =
 printIfForeignKeyAlternate _ _ = ""
 
 
-printEntityFieldTypeFunctionConnector :: EntityFieldType -> Text
-printEntityFieldTypeFunctionConnector eft = if _isEntityFieldTypeMaybe eft then " <$>" else " $"
-
 printIfForeignKeyAlternate2 :: ForeignKeyType -> Text -> EntityFieldType -> Text
 printIfForeignKeyAlternate2 MongoKeyInSQL entityName entityFieldType = 
   case stringEndsInId $ T.unpack entityName of
     False -> ""
-    True  -> "mongoKeyToByteString" <> printEntityFieldTypeFunctionConnector entityFieldType <> " "
+    True  -> 
+      case needsPrefix of 
+        False -> "mongoKeyToByteString" <> funcInfix <> " "
+        True  -> "fmap mongoKeyToByteString" <> funcInfix <> " "
+  
+  where
+    (needsPrefix,funcInfix) = printEntityFieldTypeFunctionConnector entityFieldType
 
 printIfForeignKeyAlternate2 SQLKeyInMongo entityName entityFieldType = 
   case stringEndsInId $ T.unpack entityName of
     False -> ""
-    True  -> "fromSqlKey" <> printEntityFieldTypeFunctionConnector entityFieldType <> " "
+    True  -> 
+     case needsPrefix of
+       False -> "fromSqlKey" <> funcInfix <> " "
+       True  -> "fmap fromSqlKey" <> funcInfix <> " "
+  
+  where
+    (needsPrefix,funcInfix) = printEntityFieldTypeFunctionConnector entityFieldType
 
 printIfForeignKeyAlternate2 _ _ _ = ""
 
+-- | If 'fst' True then prefix the function with 'fmap'
+printEntityFieldTypeFunctionConnector :: EntityFieldType -> (Bool, Text)
+printEntityFieldTypeFunctionConnector eft = 
+  if _isEntityFieldTypeMaybe eft && _isEntityFieldTypeList eft 
+    then (True, " <$>") 
+    else 
+      if _isEntityFieldTypeMaybe eft || _isEntityFieldTypeList eft 
+        then (False, " <$>")
+        else (False, " $")
 
 -- | Return true if the last two characters are "Id".
 stringEndsInId :: String -> Bool

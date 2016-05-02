@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.Persist.Audit.Types where
@@ -6,6 +7,7 @@ import           Data.Text (Text)
 
 import           Database.Persist.TH
 
+import           GHC.Generics
 
 -- | A collection of data types with which you can recontruct a Persist Model file
 -- | or create an altered version.
@@ -113,7 +115,7 @@ data Comment = Comment {
 
 -- | Annotations for each Audit Model to keep track of why it was inserted. 
 data AuditAction = Create | Delete | Update 
-  deriving (Show, Read, Eq, Ord)
+  deriving (Show, Read, Eq, Ord, Generic)
 
 derivePersistField "AuditAction"
 
