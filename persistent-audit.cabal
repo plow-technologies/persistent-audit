@@ -9,7 +9,7 @@ maintainer:          mchaver@gmail.com
 category:            Database, Yesod, Persistent
 stability:           Beta
 build-type:          Simple
-extra-source-files:  ChangeLog.md
+extra-source-files:  ChangeLog.md README.md
 cabal-version:       >=1.10
 
 executable persistent-audit
