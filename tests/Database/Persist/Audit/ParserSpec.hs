@@ -6,8 +6,9 @@ module Database.Persist.Audit.ParserSpec ( main
 
 import           Data.Attoparsec.Text
 import           Data.Either
-import           Data.Text (Text)
+
 import           Database.Persist.Audit.Parser
+import           Database.Persist.Audit.Parser.Types
 import           Database.Persist.Audit.Types
 
 import           Test.Hspec                             ( Spec
@@ -18,14 +19,6 @@ import           Test.Hspec                             ( Spec
                                                         , shouldMatchList)
 
 
-{-
-Person
-  name Text
-  phoneNumbers [Text] Maybe
--}
-
-personModel :: Text
-personModel = "Person\n  name Text\n  phoneNumbers [Text] Maybe\n"
 
 spec :: Spec
 spec = do
@@ -93,7 +86,6 @@ spec = do
       let parseResult = parseOnly haskellTypeName "~Get"
       parseResult `shouldBe` (Right "Get")
     
-      -- parseResult `shouldBe` (Right "~Get")
     
 
     -- should fail
@@ -121,42 +113,8 @@ spec = do
       let parseResult = parseOnly parseEntityForeign "  Foreign Tree fkparent parent"
       parseResult `shouldBe` (Right (EntityForeign "Tree" ["fkparent","parent"]))
   
-  {-
-parseEntityPrimary :: Parser EntityPrimary
-parseEntityPrimary = do
-  _ <- many1 spaceNoNewLine
-  _ <- string "Primary"
-  -- _ <- many1 spaceNoNewLine
-  names <- many1 (many1 spaceNoNewLine *> haskellFunctionName)
-  
-  _ <- takeTill isEndOfLine
-  endOfLine <|> endOfInput
 
-  return $ EntityPrimary names
-
-parseEntityForeign :: Parser EntityForeign
-  -}
   describe "parseMigrationOnlyAndSafeToRemove" $ do
-    it "Should parse MigrationOnly" $ do
-      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "     MigrationOnly"
-      parseResult `shouldBe` (Right (True,False))
-
-    it "Should parse SafeToRemove" $ do
-      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "   SafeToRemove"
-      parseResult `shouldBe` (Right (False,True)) 
-
-    it "Should parse empty space" $ do
-      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "     "
-      parseResult `shouldBe` (Right (False,False)) 
-
-    it "Should parse MigrationOnly and SafeToRemove" $ do
-      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "  MigrationOnly   SafeToRemove"
-      parseResult `shouldBe` (Right (True,True)) 
-
-    it "Should parse SafeToRemove and MigrationOnly" $ do
-      let parseResult = parseOnly parseMigrationOnlyAndSafeToRemoveOld "   SafeToRemove  MigrationOnly"
-      parseResult `shouldBe` (Right (True,True)) 
-
 
     it "Should parse MigrationOnly" $ do
       let parseResult = parseOnly (parseMigrationOnlyAndSafeToRemove []) "     MigrationOnly"
@@ -236,10 +194,7 @@ parseEntityForeign :: Parser EntityForeign
     
       
 
-    {-
-"  Primary name age"
-      parseResult `shouldBe` (Right (EntityPrimary ["name","age"]))
-    -}
+
   describe "parseEntityField" $ do
     it "Should parse a well formed entity field" $ do
       let sampleEntityField = "  ident Text"
@@ -291,77 +246,5 @@ parseEntityForeign :: Parser EntityForeign
       let parseResult = parseOnly parseEntityField sampleEntityField
       parseResult `shouldBe` (Right ef)  
     
-  {-  
-    it "Should parse a well formed entity field" $ do
-      let sampleEntityField = "  phoneNumbers [Int]"
-      let eft = EntityFieldType "Int" True
-      let ef  = EntityField "phoneNumbers" eft ""
-      let parseResult = parseOnly parseEntityField sampleEntityField
-      parseResult `shouldBe` (Right ef) 
-      
-    it "Should fail to parse an unindented entity field" $ do
-      let sampleEntityField = "ident Text"
-      let parseResult = parseOnly parseEntityField sampleEntityField
-      isLeft parseResult `shouldBe` True
-  -}
-
-  {-
-  describe "parseEntityUnique" $ do
-    it "Should parse a well formed entity unique" $ do
-      let sampleEntityUnique = "  UniqueGroup group"
-      let eu = EntityUnique "UniqueGroup" "group" ""
-      let parseResult = parseOnly parseEntityUnique sampleEntityUnique
-      parseResult `shouldBe` (Right eu)
-
-  describe "parseEntityDerive" $ do
-    it "Should parse a well formed entity derive" $ do
-      let sampleEntityDerive = "  deriving Eq"
-      let ed = EntityDerive "Eq"
-      let parseResult = parseOnly parseEntityDerive sampleEntityDerive
-      parseResult `shouldBe` (Right ed)
-
-  describe "parseEntity" $ do
-    it "Should parse a well formed entity" $ do
-      let sampleEntity = "User\n ident Text\n password Text Maybe\n UniqueUser ident\n deriving Eq\n"
-      let parseResult = parseOnly parseEntity sampleEntity
-
-      let eft1 = EntityFieldType "Text" False
-      let ef1  = EntityChildEntityField $ EntityField "ident" eft1 ""
-
-      let eft2 = EntityFieldType "Text" False
-      let ef2  = EntityChildEntityField $ EntityField "password" eft2 " Maybe"
-
-      let eu = EntityChildEntityUnique $ EntityUnique "UniqueUser" "ident" ""
-
-      let ed = EntityChildEntityDerive $ EntityDerive "Eq"
-
-      let e = Entity "User" [ef1,ef2,eu,ed]
-
-      parseResult `shouldBe` (Right e)
-
-    it "Should parse a well formed entity that has a maybe list data type" $ do
-      let parseResult = parseOnly parseEntity personModel
-      (isRight parseResult) `shouldBe` True
-    
-  describe "parsePersistQuasiQuoters" $ do
-    it "Should parse a well formed entity" $ do
-      let sampleEntity = "[persistLowerCase|User\n ident Text\n password Text Maybe\n UniqueUser ident\n deriving Eq\n|]"
-      let parseResult = parseOnly parsePersistQuasiQuoters sampleEntity
-
-      let eft1 = EntityFieldType "Text" False
-      let ef1  = EntityChildEntityField $ EntityField "ident" eft1 ""
-
-      let eft2 = EntityFieldType "Text" False
-      let ef2  = EntityChildEntityField $ EntityField "password" eft2 " Maybe"
-
-      let eu = EntityChildEntityUnique $ EntityUnique "UniqueUser" "ident" ""
-
-      let ed = EntityChildEntityDerive $ EntityDerive "Eq"
-
-      let e = [PersistModelFileEntity $ Entity "User" [ef1,ef2,eu,ed]]
-
-      parseResult `shouldBe` (Right e)
-  -}
-
 main :: IO ()
 main = hspec spec

@@ -1,5 +1,3 @@
--- {-# DEPRECATED parseMigrationOnlyAndSafeToRemoveOld "Left as a reference to compare parsing styles" #-}
-
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -20,6 +18,7 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           Database.Persist.Audit.Types
+import           Database.Persist.Audit.Parser.Types
 
 import           Prelude hiding (takeWhile)
 
@@ -72,15 +71,6 @@ parseEntity = do
   return $ Entity entityName derivesJson mSqlTable entityChildren
 
 
-{-
-parseEntityName :: Parser Text
-parseEntityName = do
-  name <- haskellTypeName
-  rest <- takeTill isEndOfLine
-  endOfLine <|> endOfInput
-  return name
--}
-
 parseEntitySqlTable :: Parser Text
 parseEntitySqlTable = do
   _ <- string "sql" 
@@ -90,16 +80,6 @@ parseEntitySqlTable = do
   -- take while not space
   text <- many' (digit <|> letter <|> underline) 
   return $ T.pack text
-
-
-{-
-data Entity = Entity {
-  _getEntityName      :: Text
-, _isEntityDeriveJson :: Bool          -- | Person json
-, _getEntitySqlTable  :: Maybe Text    -- | Person sql=peoples
-, _getEntityChildren  :: [EntityChild]
-} deriving (Eq,Show,Read)
--}
   
 -- helper functions
 
@@ -177,11 +157,6 @@ collectWhiteSpace = do
 
 
 
--- main parsing functions
-
--- [Entity]
-
-
 -- EntityName
 
 parseEntityName :: Parser Text
@@ -203,12 +178,6 @@ parseEntityField = do
   
   rest <- takeTill isEndOfLine
   endOfLine <|> endOfInput
-
-  {-
-  return $ EntityField efn 
-                       eft 
-                       False False Nothing Nothing Nothing Nothing
-  -}
   
   return $ EntityField efn 
                        eft 
@@ -223,8 +192,6 @@ parseEntityField = do
 deleteItems :: (Eq a) => [a] -> [a] -> [a]
 deleteItems (x:xs) ys = deleteItems xs $ delete x ys 
 deleteItems _ ys = nub ys
-
-data MigrationOnlyAndSafeToRemoveOption = MigrationOnly | SafeToRemove deriving (Eq,Read,Show)
 
 parseMigrationOnly :: Parser MigrationOnlyAndSafeToRemoveOption
 parseMigrationOnly = string "MigrationOnly" *> pure MigrationOnly
@@ -245,50 +212,6 @@ parseMigrationOnlyAndSafeToRemove parserOps = do
   case mResult of
     Nothing -> return parserOps
     Just result -> parseMigrationOnlyAndSafeToRemove (parserOps ++ [result]) <|> pure (parserOps ++ [result])
-
-
-parseMigrationOnlyAndSafeToRemoveOld :: Parser (Bool,Bool)
-parseMigrationOnlyAndSafeToRemoveOld = do
-  _ <- many1 spaceNoNewLine
-  meMS <- (Just . Left <$> string "MigrationOnly") <|> (Just . Right <$> string "SafeToRemove") <|> pure Nothing
-  case meMS of
-    Nothing -> return (False,False)
-    Just eMS -> 
-      case eMS of
-        Left  _ -> do
-          _ <- many' spaceNoNewLine
-          mSafeToRemove <- (Just <$> "SafeToRemove") <|> pure Nothing
-          return (True,isJust mSafeToRemove)
-        Right _ -> do
-          _ <- many' spaceNoNewLine
-          mMigrationOnly <- (Just <$> "MigrationOnly") <|> pure Nothing
-          return (isJust mMigrationOnly,True)
-{-
-data EntityField = EntityField {
-  _getEntityFieldName :: Text
-, _getEntityFieldType :: EntityFieldType
-, _isEntityFieldMigrationOnly :: Bool
-, _isEntityFieldSafeToRemove  :: Bool
-, _getEntityFieldDefault   :: Maybe Text
-, _getEntityFieldSql       :: Maybe Text
-, _getEntityFieldSqlType   :: Maybe Text
-, _getEntityFieldMaxLen    :: Maybe Int
-} deriving (Eq,Show,Read)
--}
-
-data EntityFieldLastItem = FieldDefault Text
-                         | FieldSqlRow  Text 
-                         | FieldSqlType Text
-                         | FieldMaxLen  Int
-  deriving (Read,Show)
-
-instance Eq EntityFieldLastItem where
-  (FieldDefault  _) == (FieldDefault  _) = True
-  (FieldSqlRow   _) == (FieldSqlRow   _) = True
-  (FieldSqlType  _) == (FieldSqlType  _) = True
-  (FieldMaxLen   _) == (FieldMaxLen   _) = True
-  _ == _ = False
-
 
 getFieldDefault :: [EntityFieldLastItem] -> Maybe Text
 getFieldDefault (x:xs) = 
@@ -379,19 +302,6 @@ parseEntityFieldLastItem parserOps = do
   case mResult of
     Nothing -> return parserOps
     Just result -> parseEntityFieldLastItem (parserOps ++ [result]) <|> pure (parserOps ++ [result])
-
-{-
-parseMigrationOnlyAndSafeToRemove :: [MigrationOnlyAndSafeToRemoveOption] -> Parser [MigrationOnlyAndSafeToRemoveOption]
-parseMigrationOnlyAndSafeToRemove parserOps = do
-  _ <- many1 spaceNoNewLine
-  -- let parsers = [MigrationOnly,SafeToRemove] \\ parserOps
-  let parsers = deleteItems parserOps [MigrationOnly,SafeToRemove]
-  mResult <- (Just <$> choice (map getMigrationOnlyAndSafeToRemoveOption parsers)) <|> pure Nothing
-  case mResult of
-    Nothing -> return parserOps
-    Just result -> parseMigrationOnlyAndSafeToRemove (parserOps ++ [result]) <|> pure (parserOps ++ [result])
--}
-
 
 
 parseEntityFieldName :: Parser Text
@@ -495,17 +405,9 @@ parseEntityForeign = do
 
   return $ EntityForeign foreignTable names
 
-{-
-parseEntityDerive 
-                        <|> EntityChildPrimary      <$> parseEntityPrimary
-                        <|> EntityChildForeign      <$> parseEntityForeign
--}
-
 
 parseForeignKeyType :: Parser () -- Text
 parseForeignKeyType = do
   _ <- manyTill anyChar (string "Id" *> endOfInput)
   return ()
--- simpleComment   = string "<!--" *> manyTill' anyChar (string "-->")
--- endOfInput
 

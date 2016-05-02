@@ -24,18 +24,29 @@ principles
     types ending in Id are foreign pointers
 -}
 
+-- data CrossDB = SQLtoMongoDB | MongoDBtoSQL deriving (Eq,Generic,Read,Show, HasArguments)
+
 data CmdOptions = CmdOptions {
-  model         :: FilePath
-, audit         :: FilePath
-, auditInstance :: Maybe FilePath
-} deriving (Generic, Show, Eq)
+  model         :: FilePath -- | Input: Model file to parse
+, audit         :: FilePath -- | Ouput: Audit Model file
+, auditInstance :: Maybe FilePath -- | Optional Output: ToAudit Instances for models in model file to models in Audit Model File
+, crossDB       :: Maybe String -- | Nothing if original models and audit models are in the same database type
+                              --   'sqlToMongoDB'
+                              --   'mongoDbToSql'
+} deriving (Generic, Show, Eq, Read)
 
 instance HasArguments CmdOptions
 
 main :: IO ()
 main = withCliModified mods $ \ (ops :: CmdOptions) -> do
   m <- Data.Text.IO.readFile $ model ops
-  let settings = defaultSettings {foreignKeyType = MongoKeyInSQL}
+  settings <- case crossDB ops of
+      Nothing -> return defaultSettings
+      Just c  -> case c of
+        "mongoDbToSql" -> return $ defaultSettings {foreignKeyType = MongoKeyInSQL}
+        "sqlToMongoDB" -> return $ defaultSettings {foreignKeyType = SQLKeyInMongo}
+        _              -> return defaultSettings
+
   case parseModelsFile m of 
     Left _ -> print $ "Failed to parse the models file with parseEntities function."
     Right models -> do
@@ -51,4 +62,5 @@ main = withCliModified mods $ \ (ops :: CmdOptions) -> do
       AddShortOption "model" 'm' :
       AddShortOption "audit" 'a' :
       AddShortOption "auditInstance" 'i' :
+      AddShortOption "crossDB" 'c' :
       []

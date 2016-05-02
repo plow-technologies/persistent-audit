@@ -12,7 +12,6 @@ import           GHC.Generics
 -- | A collection of data types with which you can recontruct a Persist Model file
 -- | or create an altered version.
 type PersistModelFile = [PersistModelFilePiece]
---  deriving (Eq,Show,Read)
 
 -- | Top level pieces of a Persist Model file.
 data PersistModelFilePiece = PersistModelFileEntity     Entity     |
@@ -28,9 +27,6 @@ data Entity = Entity {
 , _getEntityChildren  :: [EntityChild]
 } deriving (Eq,Show,Read)
 
-
--- Primary name name2 age
--- Foreign TestParent fkparent name name2 age
 
 -- | All of the child elements of a Persist Model Entity.
 -- | They are all indented in the Model File.
@@ -71,12 +67,6 @@ data EntityFieldType = EntityFieldType {
 , _isEntityFieldTypeMaybe   :: Bool
 } deriving (Eq,Show,Read)
 
--- FOREIGN Type 
--- maxlen
--- ~ lazy
--- ! strict
-
--- _isEntityFieldTypeMaybe
 
 -- | A unique idenfitier for an Entity.
 data EntityUnique = EntityUnique {
@@ -118,6 +108,3 @@ data AuditAction = Create | Delete | Update
   deriving (Show, Read, Eq, Ord, Generic)
 
 derivePersistField "AuditAction"
-
-
--- Foreign Type field field
