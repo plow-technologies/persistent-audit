@@ -26,9 +26,13 @@ data AuditGeneratorSettings = AuditGeneratorSettings {
 -- | can be deleted without affecting the audit models. This is a work around in case the 
 -- | original models and the audit models are stored in different databases.
 -- | Persist cannot handle keys across SQL and Mongo.
-data ForeignKeyType = OriginalKey   -- | Default setting. Link the ids as the original type with a "noreference" tag.
-                    | MongoKeyInSQL -- | Store Mongo Key as a ByteString in SQL.
-                    | SQLKeyInMongo -- | Store SQL Key as an Int64 in Mongo.
+data ForeignKeyType 
+  -- | Default setting. Link the ids as the original type with a "noreference" tag.
+  = OriginalKey  
+  -- | Store Mongo Key as a ByteString in SQL.
+  | MongoKeyInSQL 
+  -- | Store SQL Key as an Int64 in Mongo.   
+  | SQLKeyInMongo
   deriving (Eq,Read,Show)
 
 -- | Settings that the author assumed would be most common.

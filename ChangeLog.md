@@ -1,5 +1,9 @@
 # Revision history for persistent-audit-script
 
-## 0.0.0.0  -- YYYY-mm-dd
+## 0.1.0.1  -- 2016-05-03
 
-* First version. Released on an unsuspecting world.
+* Fix Haddock documentation.
+
+## 0.1.0.0  -- 2016-05-02
+
+* First version.

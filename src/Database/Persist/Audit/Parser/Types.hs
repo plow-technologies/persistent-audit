@@ -5,7 +5,9 @@ module Database.Persist.Audit.Parser.Types where
 
 import Data.Text (Text)
 
-data MigrationOnlyAndSafeToRemoveOption = MigrationOnly | SafeToRemove deriving (Eq,Read,Show)
+data MigrationOnlyAndSafeToRemoveOption = MigrationOnly 
+                                        | SafeToRemove 
+  deriving (Eq,Read,Show)
 
 data EntityFieldLastItem = FieldDefault Text
                          | FieldSqlRow  Text 

@@ -53,12 +53,14 @@ data EntityField = EntityField {
 
 
 -- | Table rows can be strict or lazy
-data Strictness = Strict -- | Persist Model types are strict without any notation 
-  | ExplicitStrict       -- | "!" can be used to reemphasize that a type is strict
-  | Lazy                 -- | "~" means that a type is Laxy
+data Strictness
+  -- | Persist Model types are strict without any notation
+  = Strict   
+  -- | "!" can be used to reemphasize that a type is strict    
+  | ExplicitStrict 
+  -- | "~" means that a type is Lazy
+  | Lazy 
   deriving (Eq,Show,Read)
-
-
 -- | An entity data row's type. If '_isEntityFieldTypeList' is 'True' than this type is a list.
 data EntityFieldType = EntityFieldType {
   _getEntityFieldTypeText   :: Text
