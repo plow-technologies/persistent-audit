@@ -1,9 +1,16 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Database.Persist.Audit.Types where
 
-import           Data.Text (Text)
+import           Control.Applicative (empty)
+import           Control.Monad       (mzero)
+
+import           Data.Aeson
+import           Data.Hashable
+import qualified Data.HashMap.Lazy as HML
+import           Data.Text           (Text)
 
 import           Database.Persist.TH
 
@@ -16,7 +23,7 @@ type PersistModelFile = [PersistModelFilePiece]
 -- | Top level pieces of a Persist Model file.
 data PersistModelFilePiece = PersistModelFileEntity     Entity     |
                              PersistModelFileComment    Comment    |
-                             PersistModelFileWhiteSpace WhiteSpace  
+                             PersistModelFileWhiteSpace WhiteSpace
   deriving (Eq,Show,Read)
 
 -- | A single Persist Model Entity.
@@ -36,7 +43,7 @@ data EntityChild = EntityChildEntityField   EntityField   |
                    EntityChildEntityPrimary EntityPrimary |
                    EntityChildEntityForeign EntityForeign |
                    EntityChildComment       Comment       |
-                   EntityChildWhiteSpace    WhiteSpace    
+                   EntityChildWhiteSpace    WhiteSpace
   deriving (Eq,Show,Read)
 
 -- | A data row from an Entity.
@@ -55,11 +62,11 @@ data EntityField = EntityField {
 -- | Table rows can be strict or lazy
 data Strictness
   -- | Persist Model types are strict without any notation
-  = Strict   
-  -- | "!" can be used to reemphasize that a type is strict    
-  | ExplicitStrict 
+  = Strict
+  -- | "!" can be used to reemphasize that a type is strict
+  | ExplicitStrict
   -- | "~" means that a type is Lazy
-  | Lazy 
+  | Lazy
   deriving (Eq,Show,Read)
 -- | An entity data row's type. If '_isEntityFieldTypeList' is 'True' than this type is a list.
 data EntityFieldType = EntityFieldType {
@@ -101,12 +108,29 @@ data WhiteSpace = WhiteSpace {
 
 -- | Haskell style comments that start with "-- "
 data Comment = Comment {
-  _getComment :: Text 
+  _getComment :: Text
 } deriving (Eq,Show,Read)
 
 
--- | Annotations for each Audit Model to keep track of why it was inserted. 
-data AuditAction = Create | Delete | Update 
+-- | Annotations for each Audit Model to keep track of why it was inserted.
+data AuditAction = Create | Delete | Update
   deriving (Show, Read, Eq, Ord, Generic)
 
 derivePersistField "AuditAction"
+
+instance Hashable AuditAction
+instance FromJSON AuditAction where
+  parseJSON (Object o) = getAuditAction
+    where
+      getAuditAction
+       | HML.member "Create" o = pure Database.Persist.Audit.Types.Create
+       | HML.member "Delete" o = pure Database.Persist.Audit.Types.Delete
+       | HML.member "Update" o = pure Database.Persist.Audit.Types.Update
+       | True                  = empty
+
+  parseJSON _          = mzero
+
+instance ToJSON AuditAction where
+  toJSON (Database.Persist.Audit.Types.Create) = object ["Create" .= ([] :: [Int])]
+  toJSON (Database.Persist.Audit.Types.Delete) = object ["Delete" .= ([] :: [Int])]
+  toJSON (Database.Persist.Audit.Types.Update) = object ["Update" .= ([] :: [Int])]

@@ -4,8 +4,6 @@
 
 module Main where
 
-import           Data.Text (Text)
-import qualified Data.Text as T
 import           Data.Text.IO
 
 import           Database.Persist.Audit.Generator
@@ -20,7 +18,7 @@ principles
 
   makes a best attempt, no guarantees
 
-  assumptions made: 
+  assumptions made:
     types ending in Id are foreign pointers
 -}
 
@@ -47,8 +45,8 @@ main = withCliModified mods $ \ (ops :: CmdOptions) -> do
         "sqlToMongoDB" -> return $ defaultSettings {foreignKeyType = SQLKeyInMongo}
         _              -> return defaultSettings
 
-  case parseModelsFile m of 
-    Left _ -> print $ "Failed to parse the models file with parseEntities function."
+  case parseModelsFile m of
+    Left _ -> print ("Failed to parse the models file with parseEntities function." :: String)
     Right models -> do
       Data.Text.IO.writeFile (audit ops) (generateAuditModels settings models)
       case auditInstance ops of

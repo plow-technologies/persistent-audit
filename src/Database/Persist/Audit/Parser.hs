@@ -5,16 +5,16 @@
 
 module Database.Persist.Audit.Parser where
 
-import           Control.Applicative 
+import           Control.Applicative
 
 import           Data.Attoparsec.ByteString.Char8 (isSpace)
 import           Data.Attoparsec.Combinator
 import           Data.Attoparsec.Text
 
-import           Data.List  (delete,elem,nub)
+import           Data.List                        (delete,nub)
 import           Data.Maybe
-import           Data.Monoid ((<>))
-import           Data.Text (Text)
+import           Data.Monoid                      ((<>))
+import           Data.Text                        (Text)
 import qualified Data.Text as T
 
 import           Database.Persist.Audit.Types
@@ -37,14 +37,14 @@ parseModelsFile = parseOnly parseEntities
 parsePersistQuasiQuoters :: Parser PersistModelFile
 parsePersistQuasiQuoters = do
   _ <- manyTill' anyChar (string "[persistLowerCase|" <|> string "[persistUpperCase|")
-  manyTill' ( PersistModelFileEntity     <$> parseEntity 
+  manyTill' ( PersistModelFileEntity     <$> parseEntity
       <|> PersistModelFileWhiteSpace <$> collectWhiteSpace
       <|> PersistModelFileComment    <$> singleLineComment) (string "|]")
 
 -- | Parse a Persist Model file.
 parseEntities :: Parser PersistModelFile
 parseEntities = do
-  many' ( PersistModelFileEntity     <$> parseEntity 
+  many' ( PersistModelFileEntity     <$> parseEntity
       <|> PersistModelFileWhiteSpace <$> collectWhiteSpace
       <|> PersistModelFileComment    <$> singleLineComment)
 
@@ -60,27 +60,27 @@ parseEntity = do
   _ <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
-  entityChildren <- many' ( EntityChildEntityField   <$> parseEntityField 
-                        <|> EntityChildEntityDerive  <$> parseEntityDerive 
+  entityChildren <- many' ( EntityChildEntityField   <$> parseEntityField
+                        <|> EntityChildEntityDerive  <$> parseEntityDerive
                         <|> EntityChildEntityPrimary <$> parseEntityPrimary
                         <|> EntityChildEntityForeign <$> parseEntityForeign
-                        <|> EntityChildEntityUnique  <$> parseEntityUnique 
+                        <|> EntityChildEntityUnique  <$> parseEntityUnique
                         <|> EntityChildWhiteSpace    <$> collectWhiteSpace
                         <|> EntityChildComment       <$> singleLineComment)
-  
+
   return $ Entity entityName derivesJson mSqlTable entityChildren
 
 
 parseEntitySqlTable :: Parser Text
 parseEntitySqlTable = do
-  _ <- string "sql" 
+  _ <- string "sql"
   _ <- many' spaceNoNewLine
   _ <- char '='
   _ <- many' spaceNoNewLine
   -- take while not space
-  text <- many' (digit <|> letter <|> underline) 
+  text <- many' (digit <|> letter <|> underline)
   return $ T.pack text
-  
+
 -- helper functions
 
 -- | Wrap a Parser in 'Maybe' because it might fail. Useful for making choices.
@@ -96,15 +96,15 @@ upperCase :: Parser Char
 upperCase = satisfy (\c -> c >= 'A' && c <= 'Z')
 
 -- | Parse an underline.
-underline :: Parser Char 
+underline :: Parser Char
 underline = satisfy (== '_')
 
 -- | Parse strict marker "!" for haskellTypeName.
-exclamationMark :: Parser Char 
+exclamationMark :: Parser Char
 exclamationMark = satisfy (== '!')
 
 -- | Parse lazy marker "~" for haskellTypeName.
-tilde :: Parser Char 
+tilde :: Parser Char
 tilde = satisfy (== '~')
 
 
@@ -112,28 +112,28 @@ tilde = satisfy (== '~')
 spaceNoNewLine :: Parser Char
 spaceNoNewLine = satisfy (\x -> isSpace x && not (isEndOfLine x)) <?> "spaceNoNewLine"
 
--- | Parse a Haskell function name. It starts with underscore or lowercase letter then 
+-- | Parse a Haskell function name. It starts with underscore or lowercase letter then
 -- is followed by a combination of underscores, single quotes, letters and digits.
 -- E.g., "get", "_get", "get_1", etc.
 haskellFunctionName :: Parser Text
 haskellFunctionName = do
   first <- lowerCase <|> underline
-  rest  <- many' (digit <|> letter <|> underline) 
+  rest  <- many' (digit <|> letter <|> underline)
   lookAhead ((space *> pure ()) <|> (char ']' *> pure ()) <|> endOfInput)
   return $ T.pack ([first] ++ rest)
 
--- | Parse a Haskell type name. It starts with an uppercase letter then 
+-- | Parse a Haskell type name. It starts with an uppercase letter then
 -- is followed by a combination of underscores, single quotes, letters and digits.
 -- E.g., "Person", "Address", "PhoneNumber", etc.
 haskellTypeName :: Parser Text
 haskellTypeName = do
-  prefix <- (Just <$> exclamationMark) <|> (Just <$> tilde) <|> pure Nothing
+  _ <- (Just <$> exclamationMark) <|> (Just <$> tilde) <|> pure Nothing
   haskellTypeNameWithoutPrefix
 
 haskellTypeNameWithoutPrefix :: Parser Text
 haskellTypeNameWithoutPrefix = do
   first <- upperCase
-  rest  <- many' (digit <|> letter <|> underline) 
+  rest  <- many' (digit <|> letter <|> underline)
   -- check for ']' because it could be in a list
   lookAhead ((space *> pure ()) <|> (char ']' *> pure ())  <|> endOfInput)
   return $ T.pack ([first] ++ rest)
@@ -162,7 +162,7 @@ collectWhiteSpace = do
 parseEntityName :: Parser Text
 parseEntityName = do
   name <- haskellTypeName
-  rest <- takeTill isEndOfLine
+  _ <- takeTill isEndOfLine
   endOfLine <|> endOfInput
   return name
 
@@ -175,29 +175,29 @@ parseEntityField = do
 
   ms <- parseMigrationOnlyAndSafeToRemove [] <|> pure []
   rs <- parseEntityFieldLastItem [] <|> pure []
-  
-  rest <- takeTill isEndOfLine
+
+  _ <- takeTill isEndOfLine
   endOfLine <|> endOfInput
-  
-  return $ EntityField efn 
-                       eft 
-                       (elem MigrationOnly ms) 
+
+  return $ EntityField efn
+                       eft
+                       (elem MigrationOnly ms)
                        (elem SafeToRemove ms)
                        (getFieldDefault rs)
                        (getFieldSqlRow  rs)
                        (getFieldSqlType rs)
                        (getFieldMaxLen  rs)
-  
+
 
 deleteItems :: (Eq a) => [a] -> [a] -> [a]
-deleteItems (x:xs) ys = deleteItems xs $ delete x ys 
+deleteItems (x:xs) ys = deleteItems xs $ delete x ys
 deleteItems _ ys = nub ys
 
 parseMigrationOnly :: Parser MigrationOnlyAndSafeToRemoveOption
 parseMigrationOnly = string "MigrationOnly" *> pure MigrationOnly
 
 parseSafeToRemove :: Parser MigrationOnlyAndSafeToRemoveOption
-parseSafeToRemove  = string "SafeToRemove" *> pure SafeToRemove 
+parseSafeToRemove  = string "SafeToRemove" *> pure SafeToRemove
 
 getMigrationOnlyAndSafeToRemoveOption :: MigrationOnlyAndSafeToRemoveOption -> Parser MigrationOnlyAndSafeToRemoveOption
 getMigrationOnlyAndSafeToRemoveOption MigrationOnly = parseMigrationOnly
@@ -214,28 +214,28 @@ parseMigrationOnlyAndSafeToRemove parserOps = do
     Just result -> parseMigrationOnlyAndSafeToRemove (parserOps ++ [result]) <|> pure (parserOps ++ [result])
 
 getFieldDefault :: [EntityFieldLastItem] -> Maybe Text
-getFieldDefault (x:xs) = 
+getFieldDefault (x:xs) =
   case x of
     (FieldDefault y) -> Just y
     _ -> getFieldDefault xs
 getFieldDefault _ = Nothing
 
 getFieldSqlRow  :: [EntityFieldLastItem] -> Maybe Text
-getFieldSqlRow (x:xs) = 
+getFieldSqlRow (x:xs) =
   case x of
     (FieldSqlRow y) -> Just y
     _ -> getFieldSqlRow xs
 getFieldSqlRow _ = Nothing
 
 getFieldSqlType :: [EntityFieldLastItem] -> Maybe Text
-getFieldSqlType (x:xs) = 
+getFieldSqlType (x:xs) =
   case x of
     (FieldSqlType y) -> Just y
     _ -> getFieldSqlType xs
 getFieldSqlType _ = Nothing
 
 getFieldMaxLen  :: [EntityFieldLastItem] -> Maybe Int
-getFieldMaxLen (x:xs) = 
+getFieldMaxLen (x:xs) =
   case x of
     (FieldMaxLen y) -> Just y
     _ -> getFieldMaxLen xs
@@ -259,37 +259,37 @@ parseFieldDefault = do
   text <- many' (digit <|> letter <|> underline)
   return $ FieldDefault $ T.pack text
 
-  
+
 parseFieldSqlRow :: Parser EntityFieldLastItem
 parseFieldSqlRow = do
-  _ <- string "sql" 
+  _ <- string "sql"
   _ <- many' spaceNoNewLine
   _ <- char '='
   _ <- many' spaceNoNewLine
   -- take while not space
-  text <- many' (digit <|> letter <|> underline) 
+  text <- many' (digit <|> letter <|> underline)
   return $ FieldSqlRow $ T.pack text
 
 parseFieldSqlType :: Parser EntityFieldLastItem
 parseFieldSqlType = do
-  _ <- string "sqltype" 
+  _ <- string "sqltype"
   _ <- many' spaceNoNewLine
   _ <- char '='
   _ <- many' spaceNoNewLine
   -- take while not space
-  text <- many' (digit <|> letter <|> underline) 
+  text <- many' (digit <|> letter <|> underline)
   return $ FieldSqlType $ T.pack text
 
 parseFieldMaxLen :: Parser EntityFieldLastItem
 parseFieldMaxLen = do
-  _ <- string "maxlen" 
+  _ <- string "maxlen"
   _ <- many' spaceNoNewLine
   _ <- char '='
   _ <- many' spaceNoNewLine
   -- take while not space
   intString <- many1 digit
-  
-  case readMaybe intString :: Maybe Int of 
+
+  case readMaybe intString :: Maybe Int of
     Nothing -> fail "fieldMaxLen"
     Just int -> return $ FieldMaxLen int
 
@@ -298,7 +298,7 @@ parseEntityFieldLastItem parserOps = do
   _ <- many1 spaceNoNewLine
   let parsers = deleteItems parserOps [FieldDefault "", FieldSqlType "", FieldSqlRow "", FieldMaxLen 0]
   mResult <- (Just <$> choice (map getEntityFieldLastItemParser parsers)) <|> pure Nothing
-  
+
   case mResult of
     Nothing -> return parserOps
     Just result -> parseEntityFieldLastItem (parserOps ++ [result]) <|> pure (parserOps ++ [result])
@@ -308,7 +308,7 @@ parseEntityFieldName :: Parser Text
 parseEntityFieldName = do
   _ <- many1 spaceNoNewLine
   name <- haskellFunctionName
-  
+
   case name == "deriving" of
     True -> fail "deriving"
     False -> return name
@@ -364,7 +364,7 @@ parseEntityUniqueEntityFieldName :: Parser [Text]
 parseEntityUniqueEntityFieldName = do
   _ <- many1 spaceNoNewLine
   many1 haskellFunctionName
-  
+
 
 -- EntityDerive
 
@@ -374,7 +374,7 @@ parseEntityDerive = do
   _ <- string "deriving"
   -- _ <- many1 spaceNoNewLine
   names <- many1 (many1 spaceNoNewLine *> haskellTypeName)
-  
+
   _ <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
@@ -386,7 +386,7 @@ parseEntityPrimary = do
   _ <- string "Primary"
   -- _ <- many1 spaceNoNewLine
   names <- many1 (many1 spaceNoNewLine *> haskellFunctionName)
-  
+
   _ <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
@@ -399,7 +399,7 @@ parseEntityForeign = do
   _ <- many1 spaceNoNewLine
   foreignTable <- haskellTypeName
   names <- many1 (many1 spaceNoNewLine *> haskellFunctionName)
-  
+
   _ <- takeTill isEndOfLine
   endOfLine <|> endOfInput
 
@@ -410,4 +410,3 @@ parseForeignKeyType :: Parser () -- Text
 parseForeignKeyType = do
   _ <- manyTill anyChar (string "Id" *> endOfInput)
   return ()
-
