@@ -1,5 +1,5 @@
 name:                persistent-audit
-version:             0.1.0.2
+version:             0.1.0.3
 synopsis:            Parses a Persist Model file and produces Audit Models
 description:         Simplify database audits
 license:             BSD3
