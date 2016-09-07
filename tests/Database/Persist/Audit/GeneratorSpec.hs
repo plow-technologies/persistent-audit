@@ -7,8 +7,9 @@ import           Data.Attoparsec.Text
 
 import           Data.Text                              (Text)
 
+import           Database.Persist.Parser
+import           Database.Persist.Internal.Parser
 import           Database.Persist.Audit.Generator
-import           Database.Persist.Audit.Parser
 
 import           Test.Hspec
 

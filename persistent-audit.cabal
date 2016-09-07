@@ -15,8 +15,6 @@ cabal-version:       >=1.10
 executable persistent-audit
   main-is:             Main.hs
   other-modules:       Database.Persist.Audit.Generator
-                       Database.Persist.Audit.Parser
-                       Database.Persist.Audit.Parser.Types
                        Database.Persist.Audit.Types
 
   build-depends:       base >=4.8 && < 5
@@ -28,6 +26,7 @@ executable persistent-audit
                      , mongoDB
                      , persistent  >= 2.2
                      , persistent-mongoDB
+                     , persistent-parser == 0.1.*
                      , persistent-template
                      , text
                      , time
@@ -40,8 +39,6 @@ library
   exposed-modules:     Database.Persist.Audit.Class
                        Database.Persist.Audit.Generator
                        Database.Persist.Audit.MongoDB.Util
-                       Database.Persist.Audit.Parser
-                       Database.Persist.Audit.Parser.Types
                        Database.Persist.Audit.Types
                        Database.Persist.Audit.Queries
 
@@ -53,6 +50,7 @@ library
                      , mongoDB
                      , persistent >= 2.2
                      , persistent-mongoDB
+                     , persistent-parser == 0.1.*
                      , persistent-template
                      , text
                      , time
@@ -69,9 +67,6 @@ test-suite test
   other-modules:     Database.Persist.Audit.Class
                      Database.Persist.Audit.Generator
                      Database.Persist.Audit.GeneratorSpec
-                     Database.Persist.Audit.Parser
-                     Database.Persist.Audit.Parser.Types
-                     Database.Persist.Audit.ParserSpec
                      Database.Persist.Audit.Queries
                      Database.Persist.Audit.QueriesSpec
                      Database.Persist.Audit.Types
@@ -90,6 +85,7 @@ test-suite test
                    , persistent >= 2.2
                    , persistent-sqlite
                    , persistent-mongoDB
+                   , persistent-parser == 0.1.*                   
                    , persistent-template
                    , text
                    , time

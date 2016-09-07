@@ -162,6 +162,7 @@ deleteByAndAudit :: ( MonadIO m
                        -> ReaderT backend m ()
 deleteByAndAudit uniqueKey userName = do
   mEntity <- getBy uniqueKey
+  deleteBy uniqueKey
   case mEntity of
     Nothing -> return ()
     Just entity -> do

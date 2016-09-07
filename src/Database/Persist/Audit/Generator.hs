@@ -1,19 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts  #-}
+
 module Database.Persist.Audit.Generator where
 
 import           Data.Monoid ((<>))
-import           Data.Char 
+import           Data.Char
 import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           Database.Persist.Audit.Types
-
+import           Database.Persist.Syntax.Types
 
 
 -- | Five options for generating Audit Models and ToAudit Instances.
 data AuditGeneratorSettings = AuditGeneratorSettings {
-  childSpacing     :: Int   -- ^ The number of spaces to add for all items that appear under an EntityName. 
+  childSpacing     :: Int   -- ^ The number of spaces to add for all items that appear under an EntityName.
 , auditTag         :: Text  -- ^ The tag that will be added to the original model name in the generated audit models. If 'auditTag' is "History" then "User" will become "UserHistory".
 , keepEntityDerive :: Bool  -- ^ If 'True', the generated Audit Models will maintain the same derived Type Classes as the original file.
 , keepComments     :: Bool  -- ^ If 'True', the generated Audit Models will maintain the same comments as the original file.
@@ -23,15 +24,16 @@ data AuditGeneratorSettings = AuditGeneratorSettings {
 
 
 -- | All foreign keys are kept in the audit models but derefenced so the original models
--- | can be deleted without affecting the audit models. This is a work around in case the 
--- | original models and the audit models are stored in different databases.
--- | Persist cannot handle keys across SQL and Mongo.
-data ForeignKeyType 
+-- can be deleted without affecting the audit models. This is a work around in case the
+-- original models and the audit models are stored in different databases.
+-- Persist cannot handle keys across SQL and Mongo. A Mongo Key stored in SQL
+-- will be stored as a 'ByteString'. A SQL Key stored in Mongo will be an 'Int64'.
+data ForeignKeyType
   -- | Default setting. Link the ids as the original type with a "noreference" tag.
-  = OriginalKey  
+  = OriginalKey
   -- | Store Mongo Key as a ByteString in SQL.
-  | MongoKeyInSQL 
-  -- | Store SQL Key as an Int64 in Mongo.   
+  | MongoKeyInSQL
+  -- | Store SQL Key as an Int64 in Mongo.
   | SQLKeyInMongo
   deriving (Eq,Read,Show)
 
@@ -41,7 +43,7 @@ defaultSettings =  AuditGeneratorSettings 2 "Audit" True False False OriginalKey
 
 
 -- | Convert a list of 'TopLevel' to a list of Audit Models in 'Text'.
-generateAuditModels :: AuditGeneratorSettings -> PersistModelFile -> Text
+generateAuditModels :: AuditGeneratorSettings -> ModelsFile -> Text
 generateAuditModels settings = T.concat . (map $ (flip T.append "\n") . (printTopLevel settings))
 
 -- | Select the correct type from Audit Model to original Model. Used for cross database.
@@ -53,37 +55,37 @@ printForeignKey SQLKeyInMongo entityName = ("Int64"     , " -- " <> entityName)
 
 
 -- | Convert a 'TopLevel' to an Audit Model, white space or comment in 'Text'.
-printTopLevel :: AuditGeneratorSettings -> PersistModelFilePiece -> Text
-printTopLevel settings (PersistModelFileEntity e) = (_getEntityName e <> auditTag settings <> jsonOption <> sqlOption <> "\n")
-                                             <> (T.concat $ map (printEntityChild settings) $ _getEntityChildren e)
+printTopLevel :: AuditGeneratorSettings -> ModelsFilePiece -> Text
+printTopLevel settings (ModelsFileEntity e) = (entityName e <> auditTag settings <> jsonOption <> sqlOption <> "\n")
+                                             <> (T.concat $ map (printEntityChild settings) $ entityChildren e)
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "originalId " <> foreignKey <> foreignKeyComment <> "\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "auditAction AuditAction\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedBy Text\n"
                                              <> (T.pack $ replicate (childSpacing settings) ' ') <> "editedOn UTCTime\n"
   where
-    jsonOption = 
-      if _isEntityDeriveJson e then " " <> "json" else  ""
+    jsonOption =
+      if entityDeriveJson e then " " <> "json" else  ""
     sqlOption =
-      case _getEntitySqlTable e of
-        Just s  -> " sql=" <> s  
+      case entitySqlTable e of
+        Just s  -> " sql=" <> s
         Nothing -> ""
 
-    (foreignKey,foreignKeyComment) = printForeignKey (foreignKeyType settings) (_getEntityName e <> "Id")
+    (foreignKey,foreignKeyComment) = printForeignKey (foreignKeyType settings) (entityName e <> "Id")
 
-printTopLevel settings (PersistModelFileComment c) = 
-  if keepComments settings then _getComment c else ""
+printTopLevel settings (ModelsFileComment c) =
+  if keepComments settings then comment c else ""
 
-printTopLevel settings (PersistModelFileWhiteSpace w) = 
-  if keepSpacing settings then _getWhiteSpace w else ""
+printTopLevel settings (ModelsFileWhiteSpace w) =
+  if keepSpacing settings then whiteSpace w else ""
 
 
 -- | Convert an 'EntityChild' to a piece of an Audit Model in 'Text'.
--- | It does not generate anything for EntityUnique, EntityPrimary or EntityForeign
--- | because Audits do not need to be unique, they will have an automatically produced Key
--- | and should not have any foreign keys connecting back to the original model.
+-- It does not generate anything for EntityUnique, EntityPrimary or EntityForeign
+-- because Audits do not need to be unique, they will have an automatically produced Key
+-- and should not have any foreign keys connecting back to the original model.
 printEntityChild :: AuditGeneratorSettings -> EntityChild -> Text
-printEntityChild settings (EntityChildEntityField ef) = "  " <> entityFieldName <> " "
-                                                     <> entityFieldType
+printEntityChild settings (EntityChildEntityField ef) = "  " <> entityFieldNam <> " "
+                                                     <> entityFieldTyp
                                                      <> entityDefault
                                                      <> sqlRow
                                                      <> sqlType
@@ -91,70 +93,70 @@ printEntityChild settings (EntityChildEntityField ef) = "  " <> entityFieldName 
                                                      <> foreignKeyComment'
                                                      <> "\n"
   where
-    entityFieldName = _getEntityFieldName ef
-    eft = _getEntityFieldType ef
-    eftText = _getEntityFieldTypeText eft
+    entityFieldNam = entityFieldName ef
+    eft = entityFieldType ef
+    eftText = entityFieldTypeText eft
     (foreignKey,foreignKeyComment) = printForeignKey (foreignKeyType settings) eftText
 
-    entityFieldType = 
-      case _getEntityFieldStrictness eft of 
+    entityFieldTyp =
+      case entityFieldStrictness eft of
         Strict -> ""
         ExplicitStrict -> "!"
         Lazy -> "~"
       <> maybeLeftBracket
       <> entityType
       <> maybeRightBracket
-      <> if _isEntityFieldTypeMaybe eft then " Maybe" else ""
-    
-    entityDefault = 
-      case _getEntityFieldDefault ef of
+      <> if entityFieldTypeMaybe eft then " Maybe" else ""
+
+    entityDefault =
+      case entityFieldDefault ef of
         Just d -> " default=" <> d
         Nothing -> ""
 
     sqlRow =
-      case _getEntityFieldSqlRow ef of
+      case entityFieldSqlRow ef of
         Just sr -> " sql=" <> sr
         Nothing -> ""
 
     sqlType =
-      case _getEntityFieldSqlType ef of
+      case entityFieldSqlType ef of
         Just st -> " sqltype=" <> st
         Nothing -> ""
 
     maxLen =
-      case _getEntityFieldMaxLen ef of
+      case entityFieldMaxLen ef of
         Just ml -> " maxlen=" <> (T.pack . show $ ml)
         Nothing -> ""
 
-    maybeLeftBracket = if _isEntityFieldTypeList eft then "[" else ""
-    maybeRightBracket = if _isEntityFieldTypeList eft  then "]" else ""
+    maybeLeftBracket = if entityFieldTypeList eft then "[" else ""
+    maybeRightBracket = if entityFieldTypeList eft  then "]" else ""
     entityType = if stringEndsInId . T.unpack $ eftText then foreignKey else eftText
     foreignKeyComment' = if stringEndsInId . T.unpack $ eftText then foreignKeyComment else ""
 
-printEntityChild _ (EntityChildEntityDerive  d) = "  " <> "deriving" <> " " <> (T.intercalate " " (_getEntityDeriveTypes d)) <> "\n"
+printEntityChild _ (EntityChildEntityDerive  d) = "  " <> "deriving" <> " " <> (T.intercalate " " (entityDeriveTypes d)) <> "\n"
 printEntityChild _ (EntityChildEntityUnique  _) = ""
 printEntityChild _ (EntityChildEntityPrimary _) = ""
 printEntityChild _ (EntityChildEntityForeign _) = ""
 
-printEntityChild settings (EntityChildComment c) = if keepComments settings then _getComment c else ""
-printEntityChild settings (EntityChildWhiteSpace w) = if keepSpacing settings then _getWhiteSpace w else ""
+printEntityChild settings (EntityChildComment c) = if keepComments settings then comment c else ""
+printEntityChild settings (EntityChildWhiteSpace w) = if keepSpacing settings then whiteSpace w else ""
 
 
 -- | Convert a list of 'TopLevel' to a to a list of 'ToAudit' in 'Text'.
-generateToAuditInstances ::  AuditGeneratorSettings -> PersistModelFile -> Text
+generateToAuditInstances ::  AuditGeneratorSettings -> ModelsFile -> Text
 generateToAuditInstances settings = T.concat . (map $ printToAuditInstance settings)
 
 -- | Convert 'TopLevel' to an instance of 'ToAudit' in 'Text'.
-printToAuditInstance :: AuditGeneratorSettings -> PersistModelFilePiece -> Text
-printToAuditInstance settings (PersistModelFileEntity e) =  "instance ToAudit " <> entityName <> " where\n"
-                                    <> "  type AuditResult " <> entityName <> " = " <> auditEntityName <> "\n"
+printToAuditInstance :: AuditGeneratorSettings -> ModelsFilePiece -> Text
+printToAuditInstance settings (ModelsFileEntity e) =  "instance ToAudit " <> entityNam <> " where\n"
+                                    <> "  type AuditResult " <> entityNam <> " = " <> auditEntityName <> "\n"
                                     <> "  toAudit v k auditAction editedBy editedOn = " <> auditEntityName <> "\n"
-                                    <> (T.concat $ map (printModelAccessor settings entityName) entityChildren)
+                                    <> (T.concat $ map (printModelAccessor settings entityNam) entityChildre)
                                     <> "    (" <> ifForeignKeyAlternate <> "k) auditAction editedBy editedOn\n\n"
   where
-    entityName = _getEntityName e
-    auditEntityName = entityName <> (auditTag settings)
-    entityChildren = _getEntityChildren e
+    entityNam = entityName e
+    auditEntityName = entityNam <> (auditTag settings)
+    entityChildre = entityChildren e
     ifForeignKeyAlternate = printIfForeignKeyAlternate (foreignKeyType settings) "Id"
 
 printToAuditInstance _ _ = ""
@@ -165,24 +167,24 @@ printToAuditInstance _ _ = ""
 printModelAccessor :: AuditGeneratorSettings -> Text -> EntityChild -> Text
 printModelAccessor settings entityName (EntityChildEntityField ef) = "    ("
                                                         <> ifForeignKeyAlternate
-                                                        <> (T.pack . firstLetterToLowerCase . T.unpack $ entityName) 
-                                                        <> (T.pack . firstLetterToUpperCase . T.unpack $ _getEntityFieldName ef)
+                                                        <> (T.pack . firstLetterToLowerCase . T.unpack $ entityName)
+                                                        <> (T.pack . firstLetterToUpperCase . T.unpack $ entityFieldName ef)
                                                         <> " v)\n"
   where
-    entityFieldType = _getEntityFieldType ef
-    ifForeignKeyAlternate = printIfForeignKeyAlternate2 (foreignKeyType settings) (_getEntityFieldTypeText entityFieldType) entityFieldType
+    entityFieldTyp = entityFieldType ef
+    ifForeignKeyAlternate = printIfForeignKeyAlternate2 (foreignKeyType settings) (entityFieldTypeText entityFieldTyp) entityFieldTyp
 
 printModelAccessor _ _ _ = ""
 
 
 -- | Select the correct function for handling foreign keys.
 printIfForeignKeyAlternate :: ForeignKeyType -> Text -> Text
-printIfForeignKeyAlternate MongoKeyInSQL entityName = 
+printIfForeignKeyAlternate MongoKeyInSQL entityName =
   case stringEndsInId $ T.unpack entityName of
     False -> ""
     True  -> "mongoKeyToByteString "
 
-printIfForeignKeyAlternate SQLKeyInMongo entityName = 
+printIfForeignKeyAlternate SQLKeyInMongo entityName =
   case stringEndsInId $ T.unpack entityName of
     False -> ""
     True  -> "fromSqlKey "
@@ -191,37 +193,37 @@ printIfForeignKeyAlternate _ _ = ""
 
 
 printIfForeignKeyAlternate2 :: ForeignKeyType -> Text -> EntityFieldType -> Text
-printIfForeignKeyAlternate2 MongoKeyInSQL entityName entityFieldType = 
+printIfForeignKeyAlternate2 MongoKeyInSQL entityName entityFieldType =
   case stringEndsInId $ T.unpack entityName of
     False -> ""
-    True  -> 
-      case needsPrefix of 
+    True  ->
+      case needsPrefix of
         False -> "mongoKeyToByteString" <> funcInfix <> " "
         True  -> "fmap mongoKeyToByteString" <> funcInfix <> " "
-  
+
   where
     (needsPrefix,funcInfix) = printEntityFieldTypeFunctionConnector entityFieldType
 
-printIfForeignKeyAlternate2 SQLKeyInMongo entityName entityFieldType = 
+printIfForeignKeyAlternate2 SQLKeyInMongo entityName entityFieldType =
   case stringEndsInId $ T.unpack entityName of
     False -> ""
-    True  -> 
+    True  ->
      case needsPrefix of
        False -> "fromSqlKey" <> funcInfix <> " "
        True  -> "fmap fromSqlKey" <> funcInfix <> " "
-  
+
   where
     (needsPrefix,funcInfix) = printEntityFieldTypeFunctionConnector entityFieldType
 
 printIfForeignKeyAlternate2 _ _ _ = ""
 
--- | If 'fst' True then prefix the function with 'fmap'
+-- | If 'fst' is 'True' then prefix the function with 'fmap'.
 printEntityFieldTypeFunctionConnector :: EntityFieldType -> (Bool, Text)
-printEntityFieldTypeFunctionConnector eft = 
-  if _isEntityFieldTypeMaybe eft && _isEntityFieldTypeList eft 
-    then (True, " <$>") 
-    else 
-      if _isEntityFieldTypeMaybe eft || _isEntityFieldTypeList eft 
+printEntityFieldTypeFunctionConnector eft =
+  if entityFieldTypeMaybe eft && entityFieldTypeList eft
+    then (True, " <$>")
+    else
+      if entityFieldTypeMaybe eft || entityFieldTypeList eft
         then (False, " <$>")
         else (False, " $")
 

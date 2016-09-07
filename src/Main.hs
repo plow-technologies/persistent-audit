@@ -6,8 +6,8 @@ module Main where
 
 import           Data.Text.IO
 
+import           Database.Persist.Parser
 import           Database.Persist.Audit.Generator
-import           Database.Persist.Audit.Parser
 
 import           WithCli
 
