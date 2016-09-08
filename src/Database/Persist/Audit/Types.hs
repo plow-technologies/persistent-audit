@@ -1,3 +1,13 @@
+{-|
+Module      : Database.Persist.Audit.Types
+Description : Types for reflecting changes in the database
+Copyright   : (c) James M.C. Haver II
+License     : BSD3
+Maintainer  : mchaver@gmail.com
+Stability   : Beta
+-}
+
+
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}

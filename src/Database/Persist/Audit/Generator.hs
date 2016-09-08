@@ -1,3 +1,16 @@
+{-|
+Module      : Database.Persist.Audit.Generator
+Description : Persistent model file parsing functions
+Copyright   : (c) James M.C. Haver II
+License     : BSD3
+Maintainer  : mchaver@gmail.com
+Stability   : Beta
+
+Generate a new Persistent model files from the parsed results of
+persistent-parser.
+-}
+
+
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts  #-}
 

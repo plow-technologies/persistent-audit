@@ -1,6 +1,14 @@
-# Revision history for persistent-audit-script
+# Revision history for persistent-audit
+
+## 0.2.0.0  -- 2016-09-08
+
+* Move parsing functions and types to their own package - persistent-parser.
+* Move Main.hs to its own directory.
+* Expose ToAudit class from Persist.Audit.Types.
+* Add tests for all Audit Queries.
 
 ## 0.1.0.3  -- 2016-08-16
+
 * Add four queries: insertUniqueAndAudit, deleteByAndAudit, repsertAndAudit, replaceAndAudit
 
 ## 0.1.0.2  -- 2016-08-11

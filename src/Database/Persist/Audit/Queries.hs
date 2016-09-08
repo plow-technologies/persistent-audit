@@ -1,3 +1,16 @@
+{-|
+Module      : Database.Persist.Audit.Queries
+Description : Persistent queries extended to audit changes
+Copyright   : (c) James M.C. Haver II
+License     : BSD3
+Maintainer  : mchaver@gmail.com
+Stability   : Beta
+
+This module provides queries that extend the original Persistent queries to
+insert the changes they make into the corresponding audit columns.
+-}
+
+
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -20,6 +33,7 @@ import Database.Persist.Audit.Types
 
 -- PersistStore
 
+-- | Run Persistent 'insert' and insert data into the corresponding audit table.
 insertAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                   , backend ~ BaseBackend backend
@@ -39,7 +53,7 @@ insertAndAudit val userName = do
   _ <- insert (toAudit val key Database.Persist.Audit.Types.Create userName now)
   return key
 
-
+-- | Run Persistent 'insertUnique' and insert data into the corresponding audit table.
 insertUniqueAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                         , backend ~ BaseBackend backend
@@ -62,7 +76,7 @@ insertUniqueAndAudit val userName = do
     Just key -> void $ insert (toAudit val key Database.Persist.Audit.Types.Create userName now)
   return mKey
 
--- delete based on id
+-- | Run Persistent 'delete' and insert data into the corresponding audit table.
 deleteAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                   , backend ~ BaseBackend backend
@@ -85,7 +99,7 @@ deleteAndAudit key userName = do
       void $ insert (toAudit val key Database.Persist.Audit.Types.Delete userName now)
       delete key
 
-
+-- | Run Persistent 'update' and insert data into the corresponding audit table.
 updateAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                   , backend ~ BaseBackend backend
@@ -112,7 +126,7 @@ updateAndAudit key updateVals userName = do
 
 -- PersistQuery
 
-
+-- | Run Persistent 'deleteWhere' and insert data into the corresponding audit table.
 deleteWhereAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                        , backend ~ BaseBackend backend
@@ -135,7 +149,7 @@ deleteWhereAndAudit filters userName = do
   forM_ toBeDeleted $ \e -> void $  insert (toAudit (entityVal e) (entityKey e) Database.Persist.Audit.Types.Delete userName now)
   deleteWhere filters
 
-
+-- | Run Persistent 'deleteBy' and insert data into the corresponding audit table.
 deleteByAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                        , backend ~ BaseBackend backend
@@ -162,6 +176,7 @@ deleteByAndAudit uniqueKey userName = do
       now <- liftIO $ getCurrentTime
       void $ insert (toAudit (entityVal entity) (entityKey entity) Database.Persist.Audit.Types.Delete userName now)
 
+-- | Run Persistent 'updateWhere' and insert data into the corresponding audit table.
 updateWhereAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                        , backend ~ BaseBackend backend
@@ -185,8 +200,7 @@ updateWhereAndAudit filters updates userName = do
   forM_ toBeUpdated $ \e -> void $ insert (toAudit (entityVal e) (entityKey e) Database.Persist.Audit.Types.Update userName now)
   updateWhere filters updates
 
-
-
+-- | Run Persistent 'repsert' and insert data into the corresponding audit table.
 repsertAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                   , backend ~ BaseBackend backend
@@ -212,7 +226,7 @@ repsertAndAudit key val userName = do
   _ <- insert (toAudit val key auditType userName now)
   return key
 
-
+-- | Run Persistent 'replace' and insert data into the corresponding audit table.
 replaceAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
                   , backend ~ BaseBackend backend
