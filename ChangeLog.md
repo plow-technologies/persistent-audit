@@ -4,8 +4,7 @@
 
 * Move parsing functions and types to their own package - persistent-parser.
 * Move Main.hs to its own directory.
-* Expose ToAudit class from Persist.Audit.Types.
-* Add tests for all Audit Queries.
+* Add tests for all audit queries.
 
 ## 0.1.0.3  -- 2016-08-16
 
