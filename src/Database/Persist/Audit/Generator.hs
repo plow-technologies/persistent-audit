@@ -8,7 +8,6 @@ import           Data.Char
 import           Data.Text (Text)
 import qualified Data.Text as T
 
-import           Database.Persist.Audit.Types
 import           Database.Persist.Syntax.Types
 
 
@@ -49,9 +48,9 @@ generateAuditModels settings = T.concat . (map $ (flip T.append "\n") . (printTo
 -- | Select the correct type from Audit Model to original Model. Used for cross database.
 -- | 'fst' is the type and 'snd' is the original type in comment for if using cross database.
 printForeignKey :: ForeignKeyType -> Text -> (Text, Text)
-printForeignKey OriginalKey   entityName = (entityName <> " noreference", "")
-printForeignKey MongoKeyInSQL entityName = ("ByteString", " -- " <> entityName)
-printForeignKey SQLKeyInMongo entityName = ("Int64"     , " -- " <> entityName)
+printForeignKey OriginalKey   entityNam = (entityNam <> " noreference", "")
+printForeignKey MongoKeyInSQL entityNam = ("ByteString", " -- " <> entityNam)
+printForeignKey SQLKeyInMongo entityNam = ("Int64"     , " -- " <> entityNam)
 
 
 -- | Convert a 'TopLevel' to an Audit Model, white space or comment in 'Text'.
@@ -165,9 +164,9 @@ printToAuditInstance _ _ = ""
 
 -- | Convert 'EntityChild' to a Model accessor.
 printModelAccessor :: AuditGeneratorSettings -> Text -> EntityChild -> Text
-printModelAccessor settings entityName (EntityChildEntityField ef) = "    ("
+printModelAccessor settings entityNam (EntityChildEntityField ef) = "    ("
                                                         <> ifForeignKeyAlternate
-                                                        <> (T.pack . firstLetterToLowerCase . T.unpack $ entityName)
+                                                        <> (T.pack . firstLetterToLowerCase . T.unpack $ entityNam)
                                                         <> (T.pack . firstLetterToUpperCase . T.unpack $ entityFieldName ef)
                                                         <> " v)\n"
   where
@@ -179,13 +178,13 @@ printModelAccessor _ _ _ = ""
 
 -- | Select the correct function for handling foreign keys.
 printIfForeignKeyAlternate :: ForeignKeyType -> Text -> Text
-printIfForeignKeyAlternate MongoKeyInSQL entityName =
-  case stringEndsInId $ T.unpack entityName of
+printIfForeignKeyAlternate MongoKeyInSQL entityNam =
+  case stringEndsInId $ T.unpack entityNam of
     False -> ""
     True  -> "mongoKeyToByteString "
 
-printIfForeignKeyAlternate SQLKeyInMongo entityName =
-  case stringEndsInId $ T.unpack entityName of
+printIfForeignKeyAlternate SQLKeyInMongo entityNam =
+  case stringEndsInId $ T.unpack entityNam of
     False -> ""
     True  -> "fromSqlKey "
 
@@ -193,8 +192,8 @@ printIfForeignKeyAlternate _ _ = ""
 
 
 printIfForeignKeyAlternate2 :: ForeignKeyType -> Text -> EntityFieldType -> Text
-printIfForeignKeyAlternate2 MongoKeyInSQL entityName entityFieldType =
-  case stringEndsInId $ T.unpack entityName of
+printIfForeignKeyAlternate2 MongoKeyInSQL entityNam entityFieldTyp =
+  case stringEndsInId $ T.unpack entityNam of
     False -> ""
     True  ->
       case needsPrefix of
@@ -202,10 +201,10 @@ printIfForeignKeyAlternate2 MongoKeyInSQL entityName entityFieldType =
         True  -> "fmap mongoKeyToByteString" <> funcInfix <> " "
 
   where
-    (needsPrefix,funcInfix) = printEntityFieldTypeFunctionConnector entityFieldType
+    (needsPrefix,funcInfix) = printEntityFieldTypeFunctionConnector entityFieldTyp
 
-printIfForeignKeyAlternate2 SQLKeyInMongo entityName entityFieldType =
-  case stringEndsInId $ T.unpack entityName of
+printIfForeignKeyAlternate2 SQLKeyInMongo entityNam entityFieldTyp =
+  case stringEndsInId $ T.unpack entityNam of
     False -> ""
     True  ->
      case needsPrefix of
@@ -213,7 +212,7 @@ printIfForeignKeyAlternate2 SQLKeyInMongo entityName entityFieldType =
        True  -> "fmap fromSqlKey" <> funcInfix <> " "
 
   where
-    (needsPrefix,funcInfix) = printEntityFieldTypeFunctionConnector entityFieldType
+    (needsPrefix,funcInfix) = printEntityFieldTypeFunctionConnector entityFieldTyp
 
 printIfForeignKeyAlternate2 _ _ _ = ""
 

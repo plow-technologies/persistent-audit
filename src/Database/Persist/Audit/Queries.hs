@@ -62,13 +62,6 @@ insertUniqueAndAudit val userName = do
     Just key -> void $ insert (toAudit val key Database.Persist.Audit.Types.Create userName now)
   return mKey
 
-{-
-insertUnique :: (MonadIO m, PersistEntityBackend val ~ backend, PersistEntity val) => val -> ReaderT backend m (Maybe (Key val))
-Source
-
-Like insert, but returns Nothing when the record couldn't be inserted because of a uniqueness constraint.
--}
-
 -- delete based on id
 deleteAndAudit :: ( MonadIO m
 #if MIN_VERSION_persistent(2,5,0)
@@ -242,10 +235,3 @@ replaceAndAudit key val userName = do
     Just _  -> do
       now <- liftIO $ getCurrentTime
       void $ insert (toAudit val key Database.Persist.Audit.Types.Update userName now)
-
-{-
-insertUniqueAndAudit
-deleteByAndAudit
-repsertAndAudit
-replaceAndAudit
--}

@@ -10,7 +10,6 @@ import           Control.Monad       (mzero)
 import           Data.Aeson
 import           Data.Hashable
 import qualified Data.HashMap.Lazy as HML
-import           Data.Text           (Text)
 
 import           Database.Persist.TH
 
@@ -38,4 +37,3 @@ instance ToJSON AuditAction where
   toJSON (Database.Persist.Audit.Types.Create) = object ["Create" .= ([] :: [Int])]
   toJSON (Database.Persist.Audit.Types.Delete) = object ["Delete" .= ([] :: [Int])]
   toJSON (Database.Persist.Audit.Types.Update) = object ["Update" .= ([] :: [Int])]
-  

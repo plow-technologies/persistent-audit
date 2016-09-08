@@ -12,16 +12,18 @@ build-type:          Simple
 extra-source-files:  ChangeLog.md README.md
 cabal-version:       >=1.10
 
-executable persistent-audit
-  main-is:             Main.hs
-  other-modules:       Database.Persist.Audit.Generator
+library
+  hs-source-dirs:      src
+  exposed-modules:     Database.Persist.Audit.Generator
                        Database.Persist.Audit.Types
+                       Database.Persist.Audit.Queries
+                       Database.Persist.Audit.Class
+                       Database.Persist.Audit.MongoDB.Util
 
   build-depends:       base >=4.8 && < 5
                      , attoparsec
                      , aeson
                      , bytestring
-                     , getopt-generics
                      , hashable
                      , mongoDB
                      , persistent  >= 2.2
@@ -30,67 +32,46 @@ executable persistent-audit
                      , persistent-template
                      , text
                      , time
-                     , unordered-containers
-
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-
-library
-  exposed-modules:     Database.Persist.Audit.Class
-                       Database.Persist.Audit.Generator
-                       Database.Persist.Audit.MongoDB.Util
-                       Database.Persist.Audit.Types
-                       Database.Persist.Audit.Queries
-
-  build-depends:       base >=4.8 && < 5
-                     , aeson
-                     , attoparsec
-                     , bytestring
-                     , hashable
-                     , mongoDB
-                     , persistent >= 2.2
-                     , persistent-mongoDB
-                     , persistent-parser == 0.1.*
-                     , persistent-template
-                     , text
-                     , time
                      , transformers
                      , unordered-containers
 
-  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+executable persistent-audit
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base >=4.8 && < 5
+                     , getopt-generics
+                     , persistent-audit
+                     , persistent-parser == 0.1.*
+                     , text
+
   default-language:    Haskell2010
 
 
 test-suite test
   type:              exitcode-stdio-1.0
   main-is:           Spec.hs
-  other-modules:     Database.Persist.Audit.Class
-                     Database.Persist.Audit.Generator
-                     Database.Persist.Audit.GeneratorSpec
-                     Database.Persist.Audit.Queries
+  other-modules:     Database.Persist.Audit.GeneratorSpec
                      Database.Persist.Audit.QueriesSpec
-                     Database.Persist.Audit.Types
+
   default-language:  Haskell2010
-  hs-source-dirs:     src
-                     ,tests
+  hs-source-dirs:    tests
 
   ghc-options:       -threaded -O0 -Wall
   build-depends:     base >=4.8 && < 5
                    , aeson
                    , attoparsec
-                   , bytestring
-                   , hashable
                    , hspec
-                   , mongoDB
                    , persistent >= 2.2
+                   , persistent-audit
                    , persistent-sqlite
-                   , persistent-mongoDB
-                   , persistent-parser == 0.1.*                   
+                   , persistent-parser == 0.1.*
                    , persistent-template
                    , text
                    , time
                    , transformers
-                   , unordered-containers
 
 source-repository head
   type:     git
