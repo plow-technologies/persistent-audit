@@ -1,10 +1,10 @@
-resolver: lts-6.15
+resolver: lts-11.14
 
 packages:
 - '.'
-- "../persistent-parser"
 
-extra-deps: []
+extra-deps:
+- persistent-parser-0.1.0.2
 
 flags: {}
 
