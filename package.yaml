@@ -1,0 +1,66 @@
+name: persistent-audit
+version: 0.2.0.0
+synopsis: Parse a persistent model file to produce audit types
+description: Simplify database audits
+homepage: https://github.com/plow-technologies/persistent-audit#readme
+category: Database
+author: James M.C. Haver II
+maintainer: mchaver@gmail.com
+license: BSD3
+github: plow-technologies/quickcheck-arbitrary-adt
+copyright: Plow Technologies
+stability: Beta
+extra-source-files:
+- ChangeLog.md
+ghc-options:
+- -Wall
+- -Werror
+- -Wincomplete-uni-patterns
+- -Wincomplete-record-updates
+dependencies:
+- base >=4.8 && < 5
+- aeson
+- attoparsec
+- persistent  >= 2.2
+- persistent-parser == 0.1.*
+- persistent-template
+- text
+- time
+- transformers
+
+library:
+  source-dirs: src
+  exposed-modules: 
+  - Database.Persist.Audit.Generator
+  - Database.Persist.Audit.Types
+  - Database.Persist.Audit.Queries
+  - Database.Persist.Audit.Class
+  - Database.Persist.Audit.MongoDB.Util
+  dependencies:
+  - bytestring
+  - hashable
+  - mongoDB
+  - persistent-mongoDB
+  - unordered-containers
+
+executables:
+  persistent-audit:
+    source-dirs: app
+    main: Main.hs
+    dependencies:
+    - getopt-generics
+    - persistent-audit
+
+tests:
+  test:
+    source-dirs: tests
+    main: Spec.hs
+    other-modules:
+    - Database.Persist.Audit.GeneratorSpec
+    - Database.Persist.Audit.QueriesSpec
+    dependencies:
+    - hspec
+    - persistent-audit
+    - persistent-sqlite
+    
+    

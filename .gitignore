@@ -153,3 +153,4 @@ cabal.sandbox.config
 *.eventlog
 .stack-work/
 *.tar.gz
+*.cabal
