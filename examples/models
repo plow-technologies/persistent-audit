@@ -1,0 +1,13 @@
+User
+    ident Text
+    password Text Maybe
+    UniqueUser ident
+    deriving Typeable
+    deriving Generic
+    deriving Eq
+    deriving Show
+    deriving Ord
+
+Phone
+    number Int
+    user UserId

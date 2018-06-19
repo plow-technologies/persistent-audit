@@ -154,3 +154,5 @@ cabal.sandbox.config
 .stack-work/
 *.tar.gz
 *.cabal
+examples/auditModels
+examples/ToAuditInstances.hs

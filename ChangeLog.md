@@ -1,5 +1,11 @@
 # Revision history for persistent-audit
 
+## 0.2.0.1 -- 2018-06-19
+
+* Update README.md.
+* Switch from cabal file to hpack.
+* Add example to test the command line tool.
+
 ## 0.2.0.0  -- 2016-09-08
 
 * Move parsing functions and types to their own package - persistent-parser.
