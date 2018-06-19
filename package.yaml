@@ -1,5 +1,5 @@
 name: persistent-audit
-version: 0.2.0.0
+version: 0.2.0.1
 synopsis: Parse a persistent model file to produce audit types
 description: Simplify database audits
 homepage: https://github.com/plow-technologies/persistent-audit#readme
